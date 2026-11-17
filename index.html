@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playground Map</title>
+    <meta name="theme-color" content="#173d2a" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <aside class="panel" aria-label="Playground-Details">
+        <header class="brand">
+          <span class="brand-mark" aria-hidden="true">P</span>
+          <div>
+            <p>ENTDECKE & BEWERTE</p>
+            <h1>Playgrounds</h1>
+          </div>
+        </header>
+
+        <form id="search-form" class="search" role="search">
+          <label class="sr-only" for="search-input">Ort suchen</label>
+          <input id="search-input" type="search" placeholder="Ort oder Adresse suchen" />
+          <button type="submit" aria-label="Suchen">→</button>
+        </form>
+
+        <div id="empty-state" class="empty-state">
+          <span aria-hidden="true">⌖</span>
+          <h2>Spielplatz auswählen</h2>
+          <p>Klicke auf einen Marker, um Details zu sehen und zu bewerten.</p>
+        </div>
+
+        <section id="details" class="details" hidden>
+          <p class="eyebrow">AUSGEWÄHLTER SPIELPLATZ</p>
+          <h2 id="playground-name"></h2>
+          <p id="playground-address" class="address"></p>
+
+          <label class="visit-row">
+            <input id="visited" type="checkbox" />
+            <span>Ich war hier</span>
+          </label>
+          <p id="visited-time" class="visited-time" hidden></p>
+
+          <div class="ratings">
+            <fieldset>
+              <legend>Variety</legend>
+              <div id="variety-rating" class="rating" data-category="variety"></div>
+            </fieldset>
+            <fieldset>
+              <legend>Climbability</legend>
+              <div id="climbability-rating" class="rating" data-category="climbability"></div>
+            </fieldset>
+            <fieldset>
+              <legend>Pull-ups possibility</legend>
+              <div id="pullups-rating" class="rating" data-category="pullups"></div>
+            </fieldset>
+          </div>
+
+          <button id="maps-link" class="maps-button" type="button">
+            In Google Maps öffnen
+            <span aria-hidden="true">↗</span>
+          </button>
+        </section>
+      </aside>
+
+      <section id="map" aria-label="Karte mit Spielplätzen"></section>
+    </main>
+
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
