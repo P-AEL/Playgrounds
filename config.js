@@ -2,7 +2,7 @@
 export default {
   supabaseUrl: "",
   supabaseKey: "",
-  defaultCenter: [52.52, 13.405],
+  defaultCenter: [55.6761, 12.5683],
   defaultZoom: 14,
   overpassUrl: "https://ovp.dresel.systems/api/interpreter",
   overpassFallbackUrl: "https://overpass-api.de/api/interpreter",

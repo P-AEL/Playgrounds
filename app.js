@@ -6,10 +6,12 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const escape = (text) => String(text ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const icon = (name, extra = "") => `<svg class="icon ${extra}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
-const decimal = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const dateFormat = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const decimal = (n) => n.toLocaleString("en-GB", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const dateLabel = (value) => dateFormat.format(new Date(value));
 const storagePrefix = `playground-atlas:${new URL(".", location.href).pathname}:`;
+// A changed default city starts in the new city once, then remembers map moves.
+const mapViewKey = `map-view:${config.defaultCenter.join(",")}`;
 const readLocal = (key) => { try { return JSON.parse(localStorage.getItem(storagePrefix + key)); } catch { return null; } };
 const writeLocal = (key, value) => { try { localStorage.setItem(storagePrefix + key, JSON.stringify(value)); } catch { /* The map also works without local caching. */ } };
 
@@ -31,18 +33,18 @@ function showToast(message, error = false) {
 }
 
 function readableError(error, shared = false) {
-  const extra = shared ? " Falls Supabase pausiert ist, das Projekt im Dashboard reaktivieren." : "";
-  if (error.name === "TimeoutError" || error.name === "AbortError") return `Die Anfrage dauert zu lange. Bitte erneut versuchen.${extra}`;
-  if (error instanceof TypeError) return `Der Dienst ist nicht erreichbar. Bitte die Internetverbindung prüfen.${extra}`;
-  return error.message || "Das hat nicht geklappt. Bitte erneut versuchen.";
+  const extra = shared ? " If Supabase is paused, resume the project in the dashboard." : "";
+  if (error.name === "TimeoutError" || error.name === "AbortError") return `The request timed out. Please try again.${extra}`;
+  if (error instanceof TypeError) return `The service is unavailable. Please check your internet connection.${extra}`;
+  return error.message || "Something went wrong. Please try again.";
 }
 
 function setSyncState(state) {
   const button = $("#sync-button");
   button.classList.toggle("connected", state === "connected");
   button.classList.toggle("error", state === "error");
-  $("#sync-label").textContent = ({ setup: "Speicher einrichten", loading: "Wird synchronisiert …", connected: "Gemeinsam gespeichert", error: "Verbindung prüfen" })[state];
-  button.title = state === "setup" ? "Gemeinsamen Speicher einrichten" : "Gemeinsamen Speicher und Synchronisierung öffnen";
+  $("#sync-label").textContent = ({ setup: "Set up storage", loading: "Syncing …", connected: "Shared storage connected", error: "Check connection" })[state];
+  button.title = state === "setup" ? "Set up shared storage" : "Open shared storage and sync settings";
 }
 
 function canWrite() { return store.ready && sharedLoaded && !writeBusy; }
@@ -57,23 +59,23 @@ function render() {
   $("#stat-rated").textContent = places.filter(p => score(p) !== null).length;
   let visible = places.filter(p => filter === "all" || (filter === "unvisited" && !placeVisits(p.id).length) || (filter === "visited" && placeVisits(p.id).length) || (filter === "rated" && score(p) !== null));
   visible.sort((a, b) => {
-    if (sort === "name") return a.name.localeCompare(b.name, "de");
-    if (sort === "rating") return (score(b) ?? -1) - (score(a) ?? -1) || a.name.localeCompare(b.name, "de");
+    if (sort === "name") return a.name.localeCompare(b.name, "en");
+    if (sort === "rating") return (score(b) ?? -1) - (score(a) ?? -1) || a.name.localeCompare(b.name, "en");
     return distanceKm(referencePoint, a) - distanceKm(referencePoint, b);
   });
-  $("#result-count").textContent = `${visible.length} ${visible.length === 1 ? "Spot" : "Spots"}${view === "saved" ? " in der Sammlung" : " gefunden"}`;
+  $("#result-count").textContent = `${visible.length} ${visible.length === 1 ? "Spot" : "Spots"}${view === "saved" ? " in the collection" : " found"}`;
   const list = $("#place-list");
   list.innerHTML = visible.length ? visible.map(place => {
     const value = score(place), history = placeVisits(place.id);
     const dist = distanceKm(referencePoint, place);
     const distance = dist < 1 ? `${Math.round(dist * 1000)} m` : `${decimal(dist)} km`;
-    return `<button class="place-card ${selectedId === place.id ? "selected" : ""}" data-place="${escape(place.id)}" aria-label="${escape(place.name)} öffnen" aria-pressed="${selectedId === place.id}">
-      <div class="card-top"><span class="place-type">${icon(place.kind === "fitness_station" ? "bar" : "swing")}${place.kind === "fitness_station" ? "FITNESS & CALISTHENICS" : "SPIELPLATZ"}</span><span class="distance">${distance}</span></div>
+    return `<button class="place-card ${selectedId === place.id ? "selected" : ""}" data-place="${escape(place.id)}" aria-label="Open ${escape(place.name)}" aria-pressed="${selectedId === place.id}">
+      <div class="card-top"><span class="place-type">${icon(place.kind === "fitness_station" ? "bar" : "swing")}${place.kind === "fitness_station" ? "FITNESS & CALISTHENICS" : "PLAYGROUND"}</span><span class="distance">${distance}</span></div>
       <h3>${escape(place.name)}</h3>${icon("arrow", "card-arrow")}
-      <p class="card-subtitle">${escape(place.address || (place.equipment?.length ? place.equipment.slice(0, 2).join(" · ") : "Dein nächster Spot zum Entdecken"))}</p>
-      <div class="card-bottom"><span class="visit-badge ${history.length ? "done" : ""}">${icon(history.length ? "check" : "clock")}${history.length ? `Besucht · ${dateLabel(history[0].visited_at)}` : "Noch nicht besucht"}</span><span class="mini-rating ${value === null ? "unrated" : ""}">${value === null ? "Unbewertet" : `${icon("star")}${decimal(value)} <span>/ 10</span>`}</span></div>
+      <p class="card-subtitle">${escape(place.address || (place.equipment?.length ? place.equipment.slice(0, 2).join(" · ") : "Your next spot to explore"))}</p>
+      <div class="card-bottom"><span class="visit-badge ${history.length ? "done" : ""}">${icon(history.length ? "check" : "clock")}${history.length ? `Visited · ${dateLabel(history[0].visited_at)}` : "Not visited"}</span><span class="mini-rating ${value === null ? "unrated" : ""}">${value === null ? "Unrated" : `${icon("star")}${decimal(value)} <span>/ 10</span>`}</span></div>
     </button>`;
-  }).join("") : `<div class="empty-state">${icon(view === "saved" ? "star" : "pin")}<h3>${view === "saved" ? "Hier beginnt eure Sammlung." : filter === "all" ? "Hier ist noch Platz für Neues." : "Noch kein passender Spot."}</h3><p>${view === "saved" ? (store.ready ? "Besuche oder bewerte einen Spielplatz.<br>Er bleibt dann hier für alle gespeichert." : "Verbinde den gemeinsamen Speicher,<br>um eure Sammlung zu starten.") : filter === "all" ? "Verschiebe die Karte oder suche einen Ort.<br>Dann diesen Bereich durchsuchen." : "Probier einen anderen Filter<br>oder entdecke einen neuen Kartenausschnitt."}</p></div>`;
+  }).join("") : `<div class="empty-state">${icon(view === "saved" ? "star" : "pin")}<h3>${view === "saved" ? "Your shared collection starts here." : filter === "all" ? "There is more to discover." : "No matching spots yet."}</h3><p>${view === "saved" ? (store.ready ? "Visit or rate a playground.<br>It will stay here for everyone." : "Connect shared storage<br>to start your collection.") : filter === "all" ? "Move the map or search for a place.<br>Then select Search this area." : "Try a different filter<br>or explore another area."}</p></div>`;
   renderMarkers(visible);
 }
 
@@ -133,22 +135,22 @@ function renderDetail() {
   const draft = ratingDraft ?? (value === null ? { variety: 0, climbability: 0, pull_ups: 0 } : place);
   const writable = canWrite();
   const scrollTop = panel.scrollTop;
-  panel.innerHTML = `<div class="detail-cover"><button id="close-detail" class="icon-button" aria-label="Spielplatzdetails schließen" ${writeBusy ? "disabled" : ""}>${icon("close")}</button>
-    <div class="eyebrow">${icon(place.kind === "fitness_station" ? "bar" : "swing")} ${place.kind === "fitness_station" ? "FITNESS & CALISTHENICS" : "ZEIT FÜR DRAUSSEN"}</div>
-    <h2>${escape(place.name)}</h2><p>${escape(place.address || "Ein neuer Ort für dein nächstes Abenteuer.")}</p>
-    <div class="detail-score"><strong>${value === null ? "—" : decimal(value)}</strong><span>/ 10</span><span class="score-label">${value === null ? "Noch unbewertet" : "Gemeinsame Bewertung"}</span></div></div>
-    <div class="detail-body"><a class="google-link" href="${googleMapsUrl(place)}" target="_blank" rel="noopener noreferrer">${icon("pin")} In Google Maps öffnen ${icon("external")}</a>
-    ${place.equipment?.length || place.access || place.wheelchair ? `<div class="equipment-tags">${(place.equipment ?? []).map(e => `<span>${escape(e)}</span>`).join("")}${place.access === "private" ? "<span>Privater Zugang</span>" : place.access === "customers" ? "<span>Nur für Kundschaft</span>" : ""}${place.wheelchair === "yes" ? "<span>Rollstuhlgerecht laut OSM</span>" : ""}</div>` : ""}
-    <section class="detail-section"><h3 class="section-heading">${icon("check")} Schon hier gewesen?</h3><p class="section-caption">Jeder Besuch zählt. Datum und Uhrzeit bleiben erhalten.</p>
-    <button id="visit-now" class="button soft full" ${writable ? "" : "disabled"}>${icon("check")} ${writeBusy ? "Wird gespeichert …" : "Jetzt als besucht eintragen"}</button>
-    <button id="visit-other" class="visit-other" ${writable ? "" : "disabled"}>Anderes Datum & Uhrzeit eintragen</button>
-    <form id="visit-form" class="visit-form" hidden><label for="visit-time">Besucht am (lokale Uhrzeit)</label><input id="visit-time" type="datetime-local" required min="2000-01-01T00:00" max="${toLocalDateTime()}" value="${toLocalDateTime()}"><button class="button primary" type="submit">Besuch speichern</button></form>
-    ${history.length ? `<ul class="visit-history">${history.slice(0, 5).map(v => `<li>${icon("clock")}<time datetime="${escape(v.visited_at)}">${dateLabel(v.visited_at)}</time><small>Besucht</small></li>`).join("")}</ul>${history.length > 5 ? `<p class="last-updated">${history.length} Besuche insgesamt · die letzten 5 angezeigt</p>` : ""}` : ""}</section>
-    <form id="rating-form" class="detail-section"><h3 class="section-heading">${icon("star")} Wie gut ist dieser Spot?</h3><p class="section-caption">Eine gemeinsame Bewertung. Drei Perspektiven.<br>0 = gar nicht möglich · 10 = ausgezeichnet</p>
+  panel.innerHTML = `<div class="detail-cover"><button id="close-detail" class="icon-button" aria-label="Close playground details" ${writeBusy ? "disabled" : ""}>${icon("close")}</button>
+    <div class="eyebrow">${icon(place.kind === "fitness_station" ? "bar" : "swing")} ${place.kind === "fitness_station" ? "FITNESS & CALISTHENICS" : "TIME TO GO OUTSIDE"}</div>
+    <h2>${escape(place.name)}</h2><p>${escape(place.address || "A new place for your next adventure.")}</p>
+    <div class="detail-score"><strong>${value === null ? "—" : decimal(value)}</strong><span>/ 10</span><span class="score-label">${value === null ? "Not rated yet" : "Shared rating"}</span></div></div>
+    <div class="detail-body"><a class="google-link" href="${googleMapsUrl(place)}" target="_blank" rel="noopener noreferrer">${icon("pin")} Open in Google Maps ${icon("external")}</a>
+    ${place.equipment?.length || place.access || place.wheelchair ? `<div class="equipment-tags">${(place.equipment ?? []).map(e => `<span>${escape(e)}</span>`).join("")}${place.access === "private" ? "<span>Private access</span>" : place.access === "customers" ? "<span>Customers only</span>" : ""}${place.wheelchair === "yes" ? "<span>Wheelchair accessible according to OSM</span>" : ""}</div>` : ""}
+    <section class="detail-section"><h3 class="section-heading">${icon("check")} Been here before?</h3><p class="section-caption">Every visit counts. The date and time are saved.</p>
+    <button id="visit-now" class="button soft full" ${writable ? "" : "disabled"}>${icon("check")} ${writeBusy ? "Saving …" : "Log a visit now"}</button>
+    <button id="visit-other" class="visit-other" ${writable ? "" : "disabled"}>Add a different date & time</button>
+    <form id="visit-form" class="visit-form" hidden><label for="visit-time">Visited on (local time)</label><input id="visit-time" type="datetime-local" required min="2000-01-01T00:00" max="${toLocalDateTime()}" value="${toLocalDateTime()}"><button class="button primary" type="submit">Save visit</button></form>
+    ${history.length ? `<ul class="visit-history">${history.slice(0, 5).map(v => `<li>${icon("clock")}<time datetime="${escape(v.visited_at)}">${dateLabel(v.visited_at)}</time><small>Visited</small></li>`).join("")}</ul>${history.length > 5 ? `<p class="last-updated">${history.length} visits in total · showing the latest 5</p>` : ""}` : ""}</section>
+    <form id="rating-form" class="detail-section"><h3 class="section-heading">${icon("star")} How good is this spot?</h3><p class="section-caption">One shared rating. Three perspectives.<br>0 = not possible · 10 = excellent</p>
     ${CATEGORIES.map(category => `<label class="rating-field" for="rating-${category.key}" title="${category.description}"><span class="rating-label">${icon(category.icon)} ${category.label}<output id="output-${category.key}" for="rating-${category.key}">${draft[category.key]}</output></span><input id="rating-${category.key}" name="${category.key}" aria-label="${category.label}" type="range" min="0" max="10" step="1" value="${draft[category.key]}" ${writeBusy ? "disabled" : ""}><span class="rating-ticks"><span>0</span><span>5</span><span>10</span></span></label>`).join("")}
-    <button id="save-rating" type="submit" class="button primary full" ${writable ? "" : "disabled"}>${icon("check")} ${writeBusy ? "Wird gespeichert …" : value === null ? "Bewertung speichern" : "Bewertung aktualisieren"}</button>
-    ${!store.ready ? '<p class="storage-hint"><button type="button" id="detail-setup">Gemeinsamen Speicher verbinden</button>, um Besuche und Bewertungen zu speichern.</p>' : !sharedLoaded ? '<p class="storage-hint">Der gemeinsame Speicher ist noch nicht erreichbar. Bitte die Verbindung prüfen und aktualisieren.</p>' : '<p class="last-updated">Für alle sichtbar · Änderungen ersetzen die bisherige Bewertung.</p>'}
-    ${place.rated_at ? `<p class="last-updated">Zuletzt bewertet am ${dateLabel(place.rated_at)}</p>` : ""}</form></div>`;
+    <button id="save-rating" type="submit" class="button primary full" ${writable ? "" : "disabled"}>${icon("check")} ${writeBusy ? "Saving …" : value === null ? "Save rating" : "Update rating"}</button>
+    ${!store.ready ? '<p class="storage-hint"><button type="button" id="detail-setup">Connect shared storage</button> to save visits and ratings.</p>' : !sharedLoaded ? '<p class="storage-hint">Shared storage is not available yet. Please check the connection and refresh.</p>' : '<p class="last-updated">Visible to everyone · changes replace the current rating.</p>'}
+    ${place.rated_at ? `<p class="last-updated">Last rated on ${dateLabel(place.rated_at)}</p>` : ""}</form></div>`;
   panel.hidden = false;
   panel.scrollTop = scrollTop;
   $(".map-section").classList.add("details-open");
@@ -174,10 +176,10 @@ async function saveRating(event) {
   writeBusy = true; renderDetail();
   try {
     const saved = await store.saveRating(place, rating);
-    if (!validPlace(saved)) throw new Error("Die Datenbank hat die gespeicherte Bewertung nicht bestätigt. Bitte aktualisieren.");
+    if (!validPlace(saved)) throw new Error("The database did not confirm the saved rating. Please refresh.");
     sharedPlaces.set(place.id, saved);
     ratingDirty = false; ratingDraft = null; setSyncState("connected");
-    showToast("Bewertung für alle gespeichert.");
+    showToast("Rating saved for everyone.");
   } catch (error) { setSyncState("error"); showToast(readableError(error, true), true); }
   finally { writeBusy = false; render(); renderDetail(); }
 }
@@ -193,7 +195,7 @@ async function saveVisit(timestamp) {
     if (!sharedPlaces.has(place.id)) sharedPlaces.set(place.id, place);
     const history = placeVisits(place.id).filter(v => v.id !== visit.id);
     history.push(visit); history.sort((a, b) => b.visited_at.localeCompare(a.visited_at)); visits.set(place.id, history);
-    pendingVisit = null; setSyncState("connected"); showToast("Besuch mit Datum und Uhrzeit für alle gespeichert.");
+    pendingVisit = null; setSyncState("connected"); showToast("Visit saved for everyone with its date and time.");
   } catch (error) { setSyncState("error"); showToast(readableError(error, true), true); }
   finally { writeBusy = false; render(); renderDetail(); }
 }
@@ -216,7 +218,7 @@ async function syncShared({ announce = false } = {}) {
     visits = nextVisits; sharedLoaded = true;
     setSyncState("connected"); render();
     if (selectedId && !ratingDirty) renderDetail();
-    if (announce) showToast("Gemeinsame Daten sind auf dem neuesten Stand.");
+    if (announce) showToast("Shared data is up to date.");
   } catch (error) { setSyncState("error"); if (announce || !sharedLoaded) showToast(readableError(error, true), true); }
   finally { loadingShared = false; refreshButton.disabled = false; }
 }
@@ -229,30 +231,30 @@ function getBounds() {
 async function searchArea({ initial = false } = {}) {
   if (loadingArea) return;
   const bounds = getBounds();
-  if (!boundsAllowed(bounds)) { showToast("Bitte näher heranzoomen, um die Spielplätze in diesem Bereich zu laden.", true); return; }
+  if (!boundsAllowed(bounds)) { showToast("Please zoom in to load playgrounds in this area.", true); return; }
   const sequence = ++querySequence;
   loadingArea = true;
   $("#search-area").disabled = true; $("#search-area").classList.add("loading");
-  $("#search-area span").textContent = "Spots werden gesucht …";
+  $("#search-area span").textContent = "Finding spots …";
   $("#list-error").hidden = true;
   if (!areaPlaces.length && view === "area") $("#place-list").innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
-  const cached = initial ? readLocal("area-cache") : null;
+  const cached = initial ? readLocal("area-cache:en") : null;
   try {
     const cacheMatches = cached && Date.now() - cached.fetchedAt < 24 * 60 * 60 * 1000 && cached.bounds?.south <= bounds.south && cached.bounds?.west <= bounds.west && cached.bounds?.north >= bounds.north && cached.bounds?.east >= bounds.east && Array.isArray(cached.places) && cached.places.every(validPlace);
     const places = cacheMatches ? cached.places : await loadPlaces(bounds, [config.overpassUrl, config.overpassFallbackUrl].filter(Boolean));
     if (sequence !== querySequence) return;
     areaPlaces = places;
-    if (!cacheMatches) writeLocal("area-cache", { fetchedAt: Date.now(), bounds, places });
+    if (!cacheMatches) writeLocal("area-cache:en", { fetchedAt: Date.now(), bounds, places });
     const center = map.getCenter(); referencePoint = { latitude: center.lat, longitude: center.lng };
     render();
-    if (!initial) showToast(`${places.length} Spots in diesem Bereich geladen.`);
+    if (!initial) showToast(`${places.length} spots loaded in this area.`);
   } catch (error) {
-    $("#list-error").textContent = `${readableError(error)}${areaPlaces.length ? " Die bisherigen Orte bleiben sichtbar." : " Klicke zum Wiederholen auf „Diesen Bereich durchsuchen“."}`;
+    $("#list-error").textContent = `${readableError(error)}${areaPlaces.length ? " Previously loaded places remain visible." : " Select Search this area to try again."}`;
     $("#list-error").hidden = false;
-    render(); showToast("Die Spielplatzsuche ist gerade nicht erreichbar. Du kannst den Bereich erneut durchsuchen.", true);
+    render(); showToast("Playground search is unavailable right now. You can search this area again.", true);
   } finally {
     loadingArea = false; $("#search-area").disabled = false; $("#search-area").classList.remove("loading");
-    $("#search-area span").textContent = "Diesen Bereich durchsuchen";
+    $("#search-area span").textContent = "Search this area";
   }
 }
 
@@ -286,8 +288,8 @@ $("#mobile-list-toggle").setAttribute("aria-expanded", "false");
 $("#mobile-list-toggle").addEventListener("click", () => {
   const showing = $(".workspace").classList.toggle("show-list");
   $("#mobile-list-toggle").setAttribute("aria-expanded", String(showing));
-  $("#mobile-list-toggle").setAttribute("aria-label", showing ? "Karte anzeigen" : "Liste anzeigen");
-  $("#mobile-list-toggle").innerHTML = `${icon(showing ? "pin" : "list")}<span>${showing ? "Karte anzeigen" : "Liste anzeigen"}</span>`;
+  $("#mobile-list-toggle").setAttribute("aria-label", showing ? "Show map" : "Show list");
+  $("#mobile-list-toggle").innerHTML = `${icon(showing ? "pin" : "list")}<span>${showing ? "Show map" : "Show list"}</span>`;
 });
 document.addEventListener("keydown", event => { if (event.key === "Escape" && !$("dialog[open]")) closeDetail(); });
 
@@ -299,11 +301,11 @@ $("#city-form").addEventListener("submit", async event => {
   try {
     const results = await searchCity(query, config.geocoderUrl);
     const container = $("#city-results"); container.replaceChildren();
-    if (!results.length) { container.hidden = true; showToast("Kein Ort gefunden. Versuch es mit einem anderen Namen."); return; }
+    if (!results.length) { container.hidden = true; showToast("No places found. Try a different name."); return; }
     for (const result of results) {
       const button = document.createElement("button"); button.type = "button"; button.textContent = result.display_name;
       button.addEventListener("click", () => {
-        if (loadingArea) { showToast("Bitte warten, bis die laufende Gebietssuche abgeschlossen ist."); return; }
+        if (loadingArea) { showToast("Please wait for the current area search to finish."); return; }
         container.hidden = true; $("#city-input").value = "";
         $("#area-label").textContent = result.display_name.split(",").slice(0, 2).join(",");
         // Use a consistent neighbourhood-sized viewport instead of querying whole regions.
@@ -318,43 +320,43 @@ $("#city-form").addEventListener("submit", async event => {
 });
 
 $("#location-button").addEventListener("click", () => {
-  if (loadingArea) { showToast("Bitte die laufende Gebietssuche abwarten."); return; }
-  if (!navigator.geolocation) { showToast("Dein Browser unterstützt die Standortsuche nicht. Nutze die Ortssuche.", true); return; }
+  if (loadingArea) { showToast("Please wait for the current area search to finish."); return; }
+  if (!navigator.geolocation) { showToast("Your browser does not support location search. Search for a place instead.", true); return; }
   $("#location-button").disabled = true;
   navigator.geolocation.getCurrentPosition(position => {
     $("#location-button").disabled = false;
     const { latitude, longitude } = position.coords;
     map.setView([latitude, longitude], 15, { animate: false });
-    $("#area-label").textContent = "In deiner Nähe"; searchArea();
-  }, () => { $("#location-button").disabled = false; showToast("Standort nicht verfügbar oder nicht freigegeben. Du kannst stattdessen nach einer Stadt suchen.", true); }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 });
+    $("#area-label").textContent = "Near you"; searchArea();
+  }, () => { $("#location-button").disabled = false; showToast("Location is unavailable or permission was denied. You can search for a city instead.", true); }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 });
 });
 
 $("#export-button").addEventListener("click", () => {
-  if (!sharedLoaded) { showToast("Bitte zuerst den gemeinsamen Speicher verbinden und laden."); return; }
+  if (!sharedLoaded) { showToast("Please connect and load shared storage first."); return; }
   const data = { version: 1, exportedAt: new Date().toISOString(), source: "Playground Atlas / OpenStreetMap", places: [...sharedPlaces.values()], visits: [...visits.values()].flat() };
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
   const link = document.createElement("a"); link.href = url; link.download = `playground-atlas-${new Date().toISOString().slice(0, 10)}.json`; link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000); showToast("Zuletzt geladenen Stand als JSON exportiert.");
+  setTimeout(() => URL.revokeObjectURL(url), 1000); showToast("Exported the latest loaded snapshot as JSON.");
 });
 
 function init() {
   if (!window.L) {
-    $("#list-error").textContent = "Die Kartenbibliothek konnte nicht geladen werden. Bitte Seite neu laden."; $("#list-error").hidden = false;
+    $("#list-error").textContent = "The map library could not be loaded. Please reload the page."; $("#list-error").hidden = false;
     $("#search-area").disabled = true; return;
   }
-  const savedView = readLocal("map-view");
+  const savedView = readLocal(mapViewKey);
   const validView = savedView && Array.isArray(savedView.center) && savedView.center.length === 2 && savedView.center.every(Number.isFinite) && Math.abs(savedView.center[0]) < 85 && Math.abs(savedView.center[1]) <= 180 && Number.isFinite(savedView.zoom) && savedView.zoom >= 3 && savedView.zoom <= 19;
   map = L.map("map", { zoomControl: true, minZoom: 3, maxZoom: 19, worldCopyJump: true }).setView(validView ? savedView.center : config.defaultCenter, validView ? savedView.zoom : config.defaultZoom);
-  if (validView) $("#area-label").textContent = "Dein letzter Kartenausschnitt";
+  if (validView) $("#area-label").textContent = "Your last map area";
   const tileLayer = L.tileLayer(config.tileUrl, { attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>', maxZoom: 19 });
   let tileErrorShown = false;
-  tileLayer.on("tileerror", () => { if (!tileErrorShown) { tileErrorShown = true; $("#map-notice").textContent = "Hintergrundkarte nicht erreichbar. Die Spielplatzsuche und Einträge sind weiterhin nutzbar."; $("#map-notice").hidden = false; } });
+  tileLayer.on("tileerror", () => { if (!tileErrorShown) { tileErrorShown = true; $("#map-notice").textContent = "The map background is unavailable. Playground search and shared records are still usable."; $("#map-notice").hidden = false; } });
   tileLayer.addTo(map);
   markerLayer = L.markerClusterGroup ? L.markerClusterGroup({
     showCoverageOnHover: false, maxClusterRadius: 43, animate: !matchMedia("(prefers-reduced-motion:reduce)").matches,
-    iconCreateFunction: cluster => L.divIcon({ className: "atlas-cluster", html: `<span aria-label="${cluster.getChildCount()} Spots, zum Vergrößern anklicken">${cluster.getChildCount()}</span>`, iconSize: [38, 38] })
+    iconCreateFunction: cluster => L.divIcon({ className: "atlas-cluster", html: `<span aria-label="${cluster.getChildCount()} spots, select to zoom in">${cluster.getChildCount()}</span>`, iconSize: [38, 38] })
   }).addTo(map) : L.layerGroup().addTo(map);
-  map.on("moveend", () => { const center = map.getCenter(); writeLocal("map-view", { center: [center.lat, center.lng], zoom: map.getZoom() }); });
+  map.on("moveend", () => { const center = map.getCenter(); writeLocal(mapViewKey, { center: [center.lat, center.lng], zoom: map.getZoom() }); });
   new ResizeObserver(() => map.invalidateSize()).observe($("#map"));
   new ResizeObserver(() => document.documentElement.style.setProperty("--list-top", `${$(".sidebar-intro").getBoundingClientRect().bottom}px`)).observe($(".sidebar-intro"));
   $("#setup-nudge").hidden = store.ready;
