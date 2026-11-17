@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#254b3e">
-  <meta name="description" content="Entdecke Spielplätze und Outdoor-Spots. Halte Besuche fest und bewerte Variety, Climbability und Pull ups possibility gemeinsam.">
+  <meta name="description" content="Discover playgrounds and outdoor spots. Log visits and share ratings for Variety, Climbability and Pull ups possibility.">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>Playground Atlas — Draußen gibt’s mehr.</title>
+  <title>Playground Atlas — More to explore.</title>
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
   <link rel="stylesheet" href="./assets/leaflet.css">
   <link rel="stylesheet" href="./assets/MarkerCluster.css">
@@ -38,81 +38,81 @@
   </svg>
 
   <header class="topbar">
-    <a class="brand" href="./" aria-label="Playground Atlas Startseite"><span class="brand-mark"><svg class="icon"><use href="#i-swing"/></svg></span><span>playground<span class="brand-light">atlas</span><span class="brand-dot">.</span></span></a>
-    <span class="header-caption">Weniger drinnen. Mehr entdecken.</span>
+    <a class="brand" href="./" aria-label="Playground Atlas home"><span class="brand-mark"><svg class="icon"><use href="#i-swing"/></svg></span><span>playground<span class="brand-light">atlas</span><span class="brand-dot">.</span></span></a>
+    <span class="header-caption">Less indoors. More to explore.</span>
     <div class="header-actions">
-      <button id="sync-button" class="cloud-status" title="Gemeinsamen Speicher einrichten"><svg class="icon"><use href="#i-cloud"/></svg><span id="sync-label">Speicher einrichten</span><span class="status-dot"></span></button>
-      <button id="export-button" class="icon-button" title="Gemeinsame Daten als JSON exportieren" aria-label="Daten exportieren"><svg class="icon"><use href="#i-download"/></svg></button>
-      <button id="info-button" class="icon-button" title="Über diese Karte" aria-label="Informationen öffnen"><svg class="icon"><use href="#i-info"/></svg></button>
+      <button id="sync-button" class="cloud-status" title="Set up shared storage"><svg class="icon"><use href="#i-cloud"/></svg><span id="sync-label">Set up storage</span><span class="status-dot"></span></button>
+      <button id="export-button" class="icon-button" title="Export shared data as JSON" aria-label="Export data"><svg class="icon"><use href="#i-download"/></svg></button>
+      <button id="info-button" class="icon-button" title="About this map" aria-label="Open information"><svg class="icon"><use href="#i-info"/></svg></button>
     </div>
   </header>
 
   <main class="workspace">
-    <aside class="sidebar" aria-label="Spielplätze entdecken">
+    <aside class="sidebar" aria-label="Discover playgrounds">
       <section class="sidebar-intro">
-        <div class="eyebrow"><span class="tiny-sun">✳</span> DEIN NÄCHSTER LIEBLINGSSPOT</div>
-        <h1>Draußen gibt’s <em>mehr.</em></h1>
-        <p>Finde neue Spielplätze. Teste deine Grenzen.<br>Und halte fest, was sich lohnt.</p>
+        <div class="eyebrow"><span class="tiny-sun">✳</span> YOUR NEXT FAVOURITE SPOT</div>
+        <h1>More to <em>explore.</em></h1>
+        <p>Find new playgrounds. Test your limits.<br>Keep track of the spots worth returning to.</p>
         <form id="city-form" class="location-search" role="search">
           <svg class="icon"><use href="#i-search"/></svg>
-          <label class="sr-only" for="city-input">Stadt oder Ort suchen</label>
-          <input id="city-input" name="city" type="search" placeholder="Stadt oder Ort suchen" autocomplete="off" minlength="2" required>
-          <button id="city-submit" type="submit" aria-label="Ort suchen"><svg class="icon"><use href="#i-arrow"/></svg></button>
+          <label class="sr-only" for="city-input">Search for a city or place</label>
+          <input id="city-input" name="city" type="search" placeholder="Search for a city or place" autocomplete="off" minlength="2" required>
+          <button id="city-submit" type="submit" aria-label="Search places"><svg class="icon"><use href="#i-arrow"/></svg></button>
         </form>
-        <div id="city-results" class="city-results" aria-label="Gefundene Orte" hidden></div>
-        <div class="place-context"><span><svg class="icon"><use href="#i-pin"/></svg><span id="area-label">Berlin · Kartenausschnitt</span></span><button id="location-button" title="Meinen Standort verwenden"><svg class="icon"><use href="#i-target"/></svg> In meiner Nähe</button></div>
+        <div id="city-results" class="city-results" aria-label="Place search results" hidden></div>
+        <div class="place-context"><span><svg class="icon"><use href="#i-pin"/></svg><span id="area-label">Copenhagen · map area</span></span><button id="location-button" title="Use my location"><svg class="icon"><use href="#i-target"/></svg> Near me</button></div>
       </section>
 
-      <div class="stats" aria-label="Statistik für die angezeigten Spots">
-        <div><strong id="stat-total">—</strong><span>Spots im Gebiet</span></div>
-        <div><strong id="stat-visited">0</strong><span>davon besucht</span></div>
-        <div><strong id="stat-rated">0</strong><span>davon bewertet</span></div>
+      <div class="stats" aria-label="Statistics for the displayed spots">
+        <div><strong id="stat-total">—</strong><span>Spots in this area</span></div>
+        <div><strong id="stat-visited">0</strong><span>visited</span></div>
+        <div><strong id="stat-rated">0</strong><span>rated</span></div>
       </div>
 
       <section class="results-section">
-        <div class="view-tabs" aria-label="Ansicht"><button class="view-tab active" data-view="area" aria-pressed="true">Entdecken <svg class="icon"><use href="#i-pin"/></svg></button><button class="view-tab" data-view="saved" aria-pressed="false">Unsere Sammlung <svg class="icon"><use href="#i-star"/></svg></button></div>
-        <div class="filter-row" aria-label="Spots filtern"><button class="filter active" data-filter="all" aria-pressed="true">Alle</button><button class="filter" data-filter="unvisited" aria-pressed="false">Noch offen</button><button class="filter" data-filter="visited" aria-pressed="false">Besucht</button><button class="filter" data-filter="rated" aria-pressed="false">Bewertet</button></div>
-        <div class="list-options"><span id="result-count" role="status">Spielplätze werden geladen …</span><label><span class="sr-only">Sortieren</span><select id="sort-select"><option value="distance">Entfernung ↑</option><option value="rating">Bewertung ↓</option><option value="name">Name A–Z</option></select></label></div>
-        <label class="fitness-option"><input id="fitness-input" type="checkbox" checked> Auch Fitness- & Calisthenics-Spots</label>
+        <div class="view-tabs" aria-label="View"><button class="view-tab active" data-view="area" aria-pressed="true">Explore <svg class="icon"><use href="#i-pin"/></svg></button><button class="view-tab" data-view="saved" aria-pressed="false">Our collection <svg class="icon"><use href="#i-star"/></svg></button></div>
+        <div class="filter-row" aria-label="Filter spots"><button class="filter active" data-filter="all" aria-pressed="true">All</button><button class="filter" data-filter="unvisited" aria-pressed="false">Not visited</button><button class="filter" data-filter="visited" aria-pressed="false">Visited</button><button class="filter" data-filter="rated" aria-pressed="false">Rated</button></div>
+        <div class="list-options"><span id="result-count" role="status">Loading playgrounds …</span><label><span class="sr-only">Sort by</span><select id="sort-select"><option value="distance">Distance ↑</option><option value="rating">Rating ↓</option><option value="name">Name A–Z</option></select></label></div>
+        <label class="fitness-option"><input id="fitness-input" type="checkbox" checked> Include fitness & calisthenics spots</label>
         <div id="list-error" class="inline-message" role="alert" hidden></div>
-        <div id="place-list" class="place-list" aria-label="Gefundene Spielplätze"></div>
+        <div id="place-list" class="place-list" aria-label="Playground results"></div>
       </section>
-      <footer class="sidebar-footer"><span class="footer-dot"></span> Echte Orte. Gemeinsame Erinnerungen.<span>OSM-Daten · keine Vollständigkeitsgarantie</span></footer>
+      <footer class="sidebar-footer"><span class="footer-dot"></span> Real places. Shared memories.<span>OSM data · coverage may vary</span></footer>
     </aside>
 
-    <section class="map-section" aria-label="Interaktive Spielplatzkarte">
-      <div id="map" aria-label="Karte mit Spielplätzen"></div>
-      <div class="map-topline"><span class="map-label"><span class="live-dot"></span> RAUS AUS DER ROUTINE</span><button id="search-area" class="search-area"><svg class="icon"><use href="#i-refresh"/></svg><span>Diesen Bereich durchsuchen</span></button></div>
+    <section class="map-section" aria-label="Interactive playground map">
+      <div id="map" aria-label="Map of playgrounds"></div>
+      <div class="map-topline"><span class="map-label"><span class="live-dot"></span> STEP OUT OF THE ROUTINE</span><button id="search-area" class="search-area"><svg class="icon"><use href="#i-refresh"/></svg><span>Search this area</span></button></div>
       <div id="map-notice" class="map-notice" role="status" hidden></div>
-      <div id="setup-nudge" class="setup-nudge"><svg class="icon"><use href="#i-cloud"/></svg><span>Gemeinsam speichern, überall dabei.<button id="setup-nudge-button">Kostenlosen Speicher verbinden <span>↗</span></button></span></div>
-      <div class="map-legend"><span><i class="legend-pin"></i> Noch offen</span><span><i class="legend-pin visited"></i> Besucht</span><span><i class="legend-pin rated"></i> Bewertet</span></div>
-      <button id="mobile-list-toggle" class="mobile-list-toggle" aria-label="Liste anzeigen"><svg class="icon"><use href="#i-list"/></svg><span>Liste anzeigen</span></button>
-      <section id="detail-panel" class="detail-panel" aria-label="Spielplatzdetails" hidden></section>
+      <div id="setup-nudge" class="setup-nudge"><svg class="icon"><use href="#i-cloud"/></svg><span>One shared collection, wherever you go.<button id="setup-nudge-button">Connect free storage <span>↗</span></button></span></div>
+      <div class="map-legend"><span><i class="legend-pin"></i> Not visited</span><span><i class="legend-pin visited"></i> Visited</span><span><i class="legend-pin rated"></i> Rated</span></div>
+      <button id="mobile-list-toggle" class="mobile-list-toggle" aria-label="Show list"><svg class="icon"><use href="#i-list"/></svg><span>Show list</span></button>
+      <section id="detail-panel" class="detail-panel" aria-label="Playground details" hidden></section>
     </section>
   </main>
   <div id="toast" class="toast" role="status" hidden></div>
 
   <dialog id="setup-dialog" class="info-dialog">
-    <button class="icon-button dialog-close" data-close-dialog aria-label="Fenster schließen"><svg class="icon"><use href="#i-close"/></svg></button>
+    <button class="icon-button dialog-close" data-close-dialog aria-label="Close dialog"><svg class="icon"><use href="#i-close"/></svg></button>
     <span class="dialog-icon"><svg class="icon"><use href="#i-cloud"/></svg></span>
-    <div class="eyebrow">EINE SAMMLUNG. AUF ALLEN GERÄTEN.</div>
-    <h2>Gemeinsam draußen.</h2>
-    <p>Besuche und Bewertungen werden zentral gespeichert. Pro Spielplatz gibt es genau eine gemeinsame Bewertung. Alle mit Zugriff auf die Seite können sie ändern – ohne Login.</p>
-    <div id="setup-instructions"><ol><li>Ein Projekt im <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">kostenlosen Supabase-Tarif</a> erstellen.</li><li><code>supabase/schema.sql</code> im SQL-Editor ausführen.</li><li>In GitHub die Repository-Variablen <code>SUPABASE_URL</code> und <code>SUPABASE_PUBLISHABLE_KEY</code> setzen und die Seite veröffentlichen.</li></ol><p class="small-print">Die Schritt-für-Schritt-Anleitung steht in der README. Bis der Speicher verbunden ist, kannst du Orte entdecken; Speichern ist noch deaktiviert. Free-Projekte können bei Inaktivität pausieren und müssen im Supabase-Dashboard reaktiviert werden.</p></div>
-    <p id="connected-info" hidden>Der gemeinsame Speicher ist verbunden. Neue Änderungen werden beim Öffnen der Seite, bei der Rückkehr zum Tab und über „Aktualisieren“ geladen.</p>
-    <button id="refresh-data" class="button primary" disabled><svg class="icon"><use href="#i-refresh"/></svg> Gemeinsame Daten aktualisieren</button>
+    <div class="eyebrow">ONE COLLECTION. EVERY DEVICE.</div>
+    <h2>Better outside, together.</h2>
+    <p>Visits and ratings are stored centrally. Each playground has one shared rating. Anyone with access to this site can update it, without signing in.</p>
+    <div id="setup-instructions"><ol><li>Create a project on the <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">Supabase Free plan</a>.</li><li>Run <code>supabase/schema.sql</code> in the SQL editor.</li><li>In GitHub, set the repository variables <code>SUPABASE_URL</code> and <code>SUPABASE_PUBLISHABLE_KEY</code>, then publish the site.</li></ol><p class="small-print">See the README for step-by-step instructions. You can explore places now; saving is disabled until storage is connected. Free projects may pause after inactivity and need to be resumed in the Supabase dashboard.</p></div>
+    <p id="connected-info" hidden>Shared storage is connected. Changes are loaded when you open the site, return to this tab or select Refresh shared data.</p>
+    <button id="refresh-data" class="button primary" disabled><svg class="icon"><use href="#i-refresh"/></svg> Refresh shared data</button>
   </dialog>
 
   <dialog id="about-dialog" class="info-dialog">
-    <button class="icon-button dialog-close" data-close-dialog aria-label="Fenster schließen"><svg class="icon"><use href="#i-close"/></svg></button>
+    <button class="icon-button dialog-close" data-close-dialog aria-label="Close dialog"><svg class="icon"><use href="#i-close"/></svg></button>
     <span class="dialog-icon"><svg class="icon"><use href="#i-swing"/></svg></span>
-    <div class="eyebrow">PLAYGROUND ATLAS</div><h2>Deine Stadt kann mehr.</h2>
-    <p>Entdecke Spielplätze und Fitnessparks aus OpenStreetMap, trage Besuche mit Uhrzeit ein und bewerte Variety, Climbability und Pull ups possibility von 0 bis 10.</p>
-    <p>Die Karte lädt erfasste Orte im gewählten Ausschnitt. Verschiebe die Karte und klicke auf „Diesen Bereich durchsuchen“. Für die Datenqualität und Zugänglichkeit vor Ort gibt es keine Garantie.</p>
-    <p>Einträge werden gemeinsam in Supabase gespeichert und sind für Besucher dieser Seite sichtbar. Es gibt keine individuellen Profile. Der Export sichert den zuletzt geladenen Stand der gemeinsamen Sammlung.</p>
-    <p class="small-print">Beim Verwenden werden Kartenausschnitte an OpenStreetMap und Overpass, eingegebene Ortsnamen an Nominatim und gespeicherte Einträge an die konfigurierte Supabase-Instanz gesendet. Dein Standort wird nur auf Knopfdruck verwendet; die anschließende Gebietssuche übermittelt den Kartenausschnitt.</p>
-    <div class="source-links"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap-Mitwirkende</a><a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">Kartenfehler melden ↗</a><a href="https://github.com/P-AEL/Playgrounds" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div>
+    <div class="eyebrow">PLAYGROUND ATLAS</div><h2>There is more to your city.</h2>
+    <p>Discover playgrounds and outdoor gyms from OpenStreetMap, log visits with a date and time, and rate Variety, Climbability and Pull ups possibility from 0 to 10.</p>
+    <p>The map loads recorded places in the selected area. Move the map and select Search this area. Data quality and access on site cannot be guaranteed.</p>
+    <p>Records are shared through Supabase and are visible to visitors of this site. There are no individual profiles. Export saves the most recently loaded snapshot of the shared collection.</p>
+    <p class="small-print">Map areas are sent to OpenStreetMap and Overpass, submitted place names to Nominatim, and saved records to the configured Supabase project. Your location is used only when you select Near me; the subsequent search sends the map area to the map services.</p>
+    <div class="source-links"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a><a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">Report a map issue ↗</a><a href="https://github.com/P-AEL/Playgrounds" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div>
   </dialog>
-  <noscript>Bitte JavaScript aktivieren, um die Karte und die gemeinsamen Bewertungen zu verwenden.</noscript>
+  <noscript>Please enable JavaScript to use the map and shared ratings.</noscript>
 </body>
 </html>

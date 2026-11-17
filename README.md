@@ -1,6 +1,6 @@
 # Playground Atlas
 
-Spielplätze entdecken, Besuche mit Datum und Uhrzeit festhalten und eine gemeinsame Bewertung pro Spot abgeben. Statische Website für **GitHub Pages**, OpenStreetMap als Datenquelle und eine **Supabase-Free-Datenbank** für gemeinsame Einträge. Kein Login und keine individuellen Bewertungen.
+Spielplätze entdecken, Besuche mit Datum und Uhrzeit festhalten und eine gemeinsame Bewertung pro Spot abgeben. Statische Website für **GitHub Pages**, OpenStreetMap als Datenquelle und eine **Supabase-Free-Datenbank** für gemeinsame Einträge. Kein Login und keine individuellen Bewertungen. Die Oberfläche ist auf Englisch; die Standardstadt ist **Copenhagen / Kopenhagen**. Nach dem ersten Start merkt sich die Karte deinen letzten Ausschnitt.
 
 ## Funktionen
 

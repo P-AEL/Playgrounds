@@ -7,12 +7,12 @@ const response = (data, status = 200) => new Response(status === 204 ? null : JS
 test("unconfigured shared storage cannot silently save locally", async () => {
   const store = new SharedStore({});
   assert.equal(store.ready, false);
-  await assert.rejects(store.saveRating(place, { variety: 1, climbability: 2, pull_ups: 3 }), /nicht eingerichtet/);
+  await assert.rejects(store.saveRating(place, { variety: 1, climbability: 2, pull_ups: 3 }), /not been set up/);
 });
 test("secret keys are rejected; publishable keys are not sent as bearer JWTs", async () => {
-  assert.throws(() => new SharedStore({ ...config, supabaseKey: "sb_secret_forbidden" }), /geheimer/);
+  assert.throws(() => new SharedStore({ ...config, supabaseKey: "sb_secret_forbidden" }), /secret key/);
   const serviceKey = `e30.${Buffer.from(JSON.stringify({ role: "service_role" })).toString("base64url")}.test`;
-  assert.throws(() => new SharedStore({ ...config, supabaseKey: serviceKey }), /öffentlichen/);
+  assert.throws(() => new SharedStore({ ...config, supabaseKey: serviceKey }), /public/);
   let headers;
   const store = new SharedStore(config, async (url, options) => { headers = options.headers; return response([]); });
   await store.load();
@@ -55,16 +55,16 @@ test("pagination loads more than 1000 shared records", async () => {
 });
 test("a partial database read fails rather than replacing the shared state", async () => {
   const store = new SharedStore(config, async url => response(url.includes("playground_visits") ? {} : [place], url.includes("playground_visits") ? 503 : 200));
-  await assert.rejects(store.load(), /pausiert/);
+  await assert.rejects(store.load(), /paused/);
 });
 test("paused service, rate limits and denied access produce actionable failures", async () => {
-  for (const [status, pattern] of [[503, /ausgelastet/], [429, /warten/], [403, /abgelehnt/]]) {
+  for (const [status, pattern] of [[503, /busy/], [429, /wait/], [403, /denied/]]) {
     await assert.rejects(jsonRequest("https://example.test", {}, async () => response({}, status)), pattern);
   }
 });
 test("Overpass runtime errors are not mistaken for complete results", async () => {
   const bounds = { south: 52.50, west: 13.38, north: 52.54, east: 13.44 };
-  await assert.rejects(loadPlaces(bounds, "https://example.test", async () => response({ elements: [], remark: "runtime error: timeout" })), /nicht vollständig/);
+  await assert.rejects(loadPlaces(bounds, "https://example.test", async () => response({ elements: [], remark: "runtime error: timeout" })), /could not be completed/);
 });
 test("a failed mirror or empty regional result falls back to a global provider", async () => {
   const bounds = { south: 52.50, west: 13.38, north: 52.54, east: 13.44 };

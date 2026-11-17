@@ -23,8 +23,8 @@ test("Overpass normalizes nodes and polygon centres, ignores unrelated objects a
   const results = fromOverpass([...elements, elements[0]]);
   assert.equal(results.length, 2);
   assert.equal(results[1].id, "way/2");
-  assert.deepEqual(results[1].equipment, ["Reck", "Hangelstrecke"]);
-  assert.deepEqual(results[0].equipment, ["Schaukel"]);
+  assert.deepEqual(results[1].equipment, ["Pull-up bar", "Monkey bars"]);
+  assert.deepEqual(results[0].equipment, ["Swings"]);
 });
 test("queries are bounded, numeric and restricted to the requested place types", () => {
   const bounds = { south: 52.50, west: 13.38, north: 52.54, east: 13.44 };
