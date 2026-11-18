@@ -10,6 +10,8 @@ An English playground map starting in **Copenhagen**, with shared visits and one
 - Google Maps links to each spot's coordinates.
 - A shared collection across devices, plus JSON export of the last loaded snapshot.
 - Responsive desktop/mobile layout and keyboard support.
+- Phone navigation for **Map**, **List** and **Saved**, large touch controls, safe-area spacing and a scrollable detail sheet.
+- Confirmed deletion of an individual visit, the shared rating, or a saved entry with its rating and all visits. Removing saved data leaves the OpenStreetMap playground discoverable.
 
 ## How storage works
 
@@ -70,7 +72,7 @@ The included `render.yaml` describes the same configuration for a future Bluepri
 
 Atlas network access permits the service's outbound ranges, currently `74.220.51.0/24` and `74.220.59.0/24`. Confirm them under **Connect → Outbound IP Addresses** in the service dashboard before changing the allowlist. These ranges are shared by other Render services in Frankfurt; database credentials are still required.
 
-The free instance can sleep while idle. The frontend waits up to 90 seconds for a Render backend to wake before loading shared data. It never automatically retries a rating or visit write. Merges into `main` automatically deploy both Render and GitHub Pages.
+The free instance can sleep while idle. The frontend waits up to 90 seconds for a Render backend to wake before loading shared data. It never automatically retries a write. Merges into `main` automatically deploy GitHub Pages. A Render service linked only by its public repository URL needs a deploy trigger after a merge; automatic deploys require a connected Git provider.
 
 ### Optional: deploy the same backend on Vercel
 
@@ -108,6 +110,9 @@ A single endpoint, `/api/atlas`, handles all operations:
 | `GET ?resource=visits&limit=500&after=CURSOR` | A page of visits |
 | `POST {action: "rate", place, rating}` | Upserts the rating for the stable OSM ID |
 | `POST {action: "visit", place, visitedAt, visitId}` | Records a visit using an idempotent UUID |
+| `POST {action: "delete", target: "visit", placeId, visitId, confirmed: true}` | Deletes only that visit for that playground |
+| `POST {action: "delete", target: "rating", placeId, confirmed: true}` | Clears the shared rating while keeping visits |
+| `POST {action: "delete", target: "place", placeId, confirmed: true}` | Removes the saved entry and all its visits |
 
 List responses contain `items` and `nextCursor`. The browser loads all pages. Invalid coordinates, place IDs, ratings, future dates and oversized requests are rejected. Client-supplied database operators and extra fields are discarded. Database errors are returned without connection details or credentials.
 
@@ -116,7 +121,7 @@ MongoDB collections:
 - `playgrounds`: OSM place ID as unique `_id`, public place metadata, the three rating values and `rated_at`.
 - `playground_visits`: UUID as unique `_id`, `playground_id`, `visited_at` and `created_at`.
 
-Visits do not overwrite ratings. Retrying the same visit UUID does not create a duplicate. All visitors share the same rating; the last successful rating update wins. The API exposes no delete action.
+Visits do not overwrite ratings. Retrying the same visit UUID does not create a duplicate. All visitors share the same rating; the last successful rating update wins. Deletions are scoped to one validated OSM place ID and, for an individual visit, its UUID. Every delete request requires `confirmed: true`; the UI asks for confirmation before sending it. Deleting a saved entry removes its rating and visits in one MongoDB transaction. Visit creation also uses a transaction, so simultaneous logging and removal cannot leave orphaned visits. There is no bulk-delete endpoint.
 
 ## Verification
 
@@ -127,13 +132,13 @@ npm run check:db
 node scripts/test-mongo.mjs
 ```
 
-The regular test suite needs no external database. The last command is an optional integration test against your configured MongoDB. It uses two uniquely named disposable collections, verifies reads/writes through two HTTP clients, and removes only those test collections afterwards. It does not modify the app's records.
+The regular test suite needs no external database. The last command is an optional integration test against your configured MongoDB. It uses two uniquely named disposable collections, verifies reads/writes and scoped deletions through two HTTP clients, checks concurrent visits/removals, and removes only those test collections afterwards. It does not modify the app's records.
 
 Cross-device check: save a visit and a rating on device A, open the site on device B, and confirm both appear. Data refreshes on opening, returning to the tab, every minute while visible, and manually through **Refresh shared data**.
 
 ## Shared access and costs
 
-There are no individual user accounts: visitors can read the collection, change the shared rating and add visits. Visit times are public to visitors. CORS limits permitted browser origins but is not authentication; public API writes remain intentionally available without login.
+There are no individual user accounts: visitors can read the collection, change the shared rating, add visits and delete saved entries. Deletions affect everyone and cannot be undone. Visit times are public to visitors. CORS limits permitted browser origins but is not authentication; public API writes remain intentionally available without login.
 
 [MongoDB Atlas Free](https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/) offers a limited free cluster and may pause after 30 days without connections. Backend hosting has its own limits. No paid hosting plan is required by this code.
 

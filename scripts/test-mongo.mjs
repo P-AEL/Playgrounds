@@ -16,7 +16,7 @@ try {
   const actualDb = client.db(database); phase = "new test collections";
   const tables = [name + "_places", name + "_visits"];
   for (const table of tables) assert.equal(await actualDb.collection(table).findOne({}), null);
-  const db = { collection: table => actualDb.collection(name + (table === "playgrounds" ? "_places" : "_visits")), command: value => actualDb.command(value) };
+  const db = { client, collection: table => actualDb.collection(name + (table === "playgrounds" ? "_places" : "_visits")), command: value => actualDb.command(value) };
   created = true;
   server = http.createServer(createAtlasHandler({ getDatabase: async () => db }));
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
@@ -42,13 +42,40 @@ try {
   phase = "reject conflicting visit UUID";
   const secondPlace = { ...place, id: "way/999999999999" };
   await assert.rejects(deviceA.addVisit(secondPlace, timestamp, id));
+  assert.equal((await deviceB.load()).places.some(p => p.id === secondPlace.id), false, "a rejected visit cannot leave a saved place behind");
   phase = "reject invalid ratings";
   const forged = await fetch(`${config.apiBaseUrl}/api/atlas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "rate", place, rating: { variety: 11, climbability: 1, pull_ups: 1 } }) });
   assert.equal(forged.status, 400);
-  console.log("PASS: real MongoDB; two clients; one shared rating; zero scores; UTC timestamps; concurrent/idempotent visits; preserved rating; invalid requests rejected.");
+  phase = "delete one visit and preserve other records";
+  await deviceB.deleteEntry("visit", place.id, id);
+  await deviceB.deleteEntry("visit", place.id, id);
+  snapshot = await deviceA.load();
+  assert.equal(snapshot.visits.length, 2); assert.equal(snapshot.places[0].variety, 10);
+  await deviceA.deleteEntry("visit", secondPlace.id, snapshot.visits[0].id);
+  assert.equal((await deviceB.load()).visits.length, 2);
+  phase = "delete rating and preserve visits";
+  await deviceA.deleteEntry("rating", place.id);
+  snapshot = await deviceB.load();
+  assert.equal(snapshot.places[0].variety, null); assert.equal(snapshot.places[0].rated_at, null); assert.equal(snapshot.visits.length, 2);
+  phase = "delete saved entry without touching another place";
+  await deviceA.saveRating(secondPlace, { variety: 7, climbability: 8, pull_ups: 9 });
+  await deviceA.addVisit(secondPlace, timestamp);
+  await deviceB.deleteEntry("place", place.id);
+  await deviceB.deleteEntry("place", place.id);
+  snapshot = await deviceA.load();
+  assert.equal(snapshot.places.length, 1); assert.equal(snapshot.places[0].id, secondPlace.id);
+  assert.equal(snapshot.visits.length, 1); assert.equal(snapshot.visits[0].playground_id, secondPlace.id);
+  phase = "concurrent visit and full deletion stay consistent";
+  for (let i = 0; i < 3; i++) {
+    phase = `concurrent visit and full deletion stay consistent (${i + 1})`;
+    await Promise.all([deviceA.addVisit(place, timestamp), deviceB.deleteEntry("place", place.id)]);
+    snapshot = await deviceA.load();
+    if (!snapshot.places.some(p => p.id === place.id)) assert.equal(snapshot.visits.filter(v => v.playground_id === place.id).length, 0);
+  }
+  console.log("PASS: real MongoDB; two clients; shared rating; UTC/idempotent visits; scoped visit/rating/place deletions; unrelated records preserved; concurrent delete and visit stay consistent.");
 } catch (error) {
   const category = /not allowed|not authorized|unauthorized|permission/i.test(error.message) ? "database permissions" : /authentication|bad auth/i.test(error.message) ? "database authentication" : "request or assertion failure";
-  console.error(JSON.stringify({ result: "MongoDB integration test failed", phase, category, kind: error.name, code: typeof error.code === "number" ? error.code : undefined })); process.exitCode = 1;
+  console.error(JSON.stringify({ result: "MongoDB integration test failed", phase, category, kind: error.name, code: typeof error.code === "number" ? error.code : undefined, actual: typeof error.actual === "number" ? error.actual : undefined, expected: typeof error.expected === "number" ? error.expected : undefined })); process.exitCode = 1;
 } finally {
   if (server) await new Promise(resolve => server.close(resolve));
   if (created && /^atlas_test_[a-f0-9]{32}$/.test(name)) {

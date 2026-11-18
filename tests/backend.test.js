@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createAtlasHandler, normalizePlace, listRecords } from "../server/atlas.mjs";
+import { createAtlasHandler, normalizePlace, listRecords, normalizeDeletion } from "../server/atlas.mjs";
 import { mongoConfiguration } from "../server/mongo.mjs";
 const place = { id: "node/10", name: "Playground", latitude: 55.676, longitude: 12.568, kind: "playground" };
 const visitId = "88d64d8a-32e1-4f0b-a0ca-48d0e6db0381";
@@ -30,6 +30,11 @@ test("the API supports explicit-origin CORS and rejects other origins before tou
 test("invalid writes fail before a database connection is opened", async () => {
   const bodies = [
     { action: "delete", place },
+    { action: "delete", target: "place", placeId: "node/10" },
+    { action: "delete", target: "all", placeId: "node/10", confirmed: true },
+    { action: "delete", target: "place", placeId: { $ne: null }, confirmed: true },
+    { action: "delete", target: "place", placeId: "", confirmed: true },
+    { action: "delete", target: "visit", placeId: "node/10", visitId: { $ne: null }, confirmed: true },
     { action: "rate", place, rating: { variety: 11, climbability: 2, pull_ups: 3 } },
     { action: "rate", place, rating: { variety: 1.5, climbability: 2, pull_ups: 3 } },
     { action: "visit", place, visitedAt: "2099-01-01T00:00:00Z", visitId },
@@ -41,6 +46,28 @@ test("invalid writes fail before a database connection is opened", async () => {
   assert.equal((await call({ headers: { "content-type": "application/json", "content-length": "20000" } })).status, 413);
   assert.equal((await call({ headers: { "content-type": "text/plain" } })).status, 415);
   assert.equal((await call({ method: "DELETE" })).status, 405);
+});
+
+test("deletions require an explicit confirmation and one exact place or visit", async () => {
+  const safe = normalizeDeletion({ target: "place", placeId: place.id, confirmed: true, filter: { $ne: null }, visitId: "ignored" });
+  assert.deepEqual(safe, { target: "place", placeId: place.id });
+  const scoped = normalizeDeletion({ target: "visit", placeId: place.id, visitId, confirmed: true });
+  assert.deepEqual(scoped, { target: "visit", placeId: place.id, visitId });
+  const result = await call({ body: { action: "delete", target: "place", placeId: place.id, confirmed: true } }, async () => { throw new Error("private database details"); });
+  assert.equal(result.status, 503); assert.equal(result.body.deleted, undefined);
+  assert.ok(!JSON.stringify(result).includes("private database details"));
+});
+
+test("deleting a visit cannot delete a different playground's visit", async () => {
+  let filter;
+  const result = await call({ body: { action: "delete", target: "visit", placeId: place.id, visitId, confirmed: true } }, async () => ({
+    collection: name => {
+      assert.equal(name, "playground_visits");
+      return { deleteOne: async value => { filter = value; return { deletedCount: 0 }; } };
+    }
+  }));
+  assert.deepEqual(filter, { _id: visitId, playground_id: place.id });
+  assert.deepEqual(result.body, { deleted: true, target: "visit", placeId: place.id, visitId });
 });
 test("database errors cannot leak connection strings or passwords", async () => {
   const result = await call({}, async () => { throw new Error("mongodb+srv://user:top-secret@cluster.invalid/"); });

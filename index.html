@@ -35,6 +35,7 @@
     <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 3h7v7m0-7L10 14M10 3H3v18h18v-7"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/></symbol>
     <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M3 6h.1M3 12h.1M3 18h.1"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol>
   </svg>
 
   <header class="topbar">
@@ -69,7 +70,7 @@
         <div><strong id="stat-rated">0</strong><span>rated</span></div>
       </div>
 
-      <section class="results-section">
+      <section id="results-section" class="results-section">
         <div class="view-tabs" aria-label="View"><button class="view-tab active" data-view="area" aria-pressed="true">Explore <svg class="icon"><use href="#i-pin"/></svg></button><button class="view-tab" data-view="saved" aria-pressed="false">Our collection <svg class="icon"><use href="#i-star"/></svg></button></div>
         <div class="filter-row" aria-label="Filter spots"><button class="filter active" data-filter="all" aria-pressed="true">All</button><button class="filter" data-filter="unvisited" aria-pressed="false">Not visited</button><button class="filter" data-filter="visited" aria-pressed="false">Visited</button><button class="filter" data-filter="rated" aria-pressed="false">Rated</button></div>
         <div class="list-options"><span id="result-count" role="status">Loading playgrounds …</span><label><span class="sr-only">Sort by</span><select id="sort-select"><option value="distance">Distance ↑</option><option value="rating">Rating ↓</option><option value="name">Name A–Z</option></select></label></div>
@@ -86,11 +87,24 @@
       <div id="map-notice" class="map-notice" role="status" hidden></div>
       <div id="setup-nudge" class="setup-nudge"><svg class="icon"><use href="#i-cloud"/></svg><span>One shared collection, wherever you go.<button id="setup-nudge-button">Connect free storage <span>↗</span></button></span></div>
       <div class="map-legend"><span><i class="legend-pin"></i> Not visited</span><span><i class="legend-pin visited"></i> Visited</span><span><i class="legend-pin rated"></i> Rated</span></div>
-      <button id="mobile-list-toggle" class="mobile-list-toggle" aria-label="Show list"><svg class="icon"><use href="#i-list"/></svg><span>Show list</span></button>
       <section id="detail-panel" class="detail-panel" aria-label="Playground details" hidden></section>
     </section>
   </main>
+  <nav class="mobile-nav" aria-label="Explore views">
+    <button type="button" data-mobile-screen="map" class="active" aria-pressed="true"><svg class="icon"><use href="#i-pin"/></svg><span>Map</span></button>
+    <button type="button" data-mobile-screen="list" aria-pressed="false" aria-controls="results-section"><svg class="icon"><use href="#i-list"/></svg><span>List</span></button>
+    <button type="button" data-mobile-screen="saved" aria-pressed="false" aria-controls="results-section"><svg class="icon"><use href="#i-star"/></svg><span>Saved</span></button>
+  </nav>
   <div id="toast" class="toast" role="status" hidden></div>
+
+  <dialog id="delete-dialog" class="info-dialog delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-message delete-scope">
+    <span class="dialog-icon danger-icon"><svg class="icon"><use href="#i-trash"/></svg></span>
+    <h2 id="delete-title">Delete saved entry?</h2>
+    <p id="delete-message"></p>
+    <p id="delete-scope" class="small-print">This deletes shared data for everyone. It cannot be undone.</p>
+    <p id="delete-error" class="inline-message" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="cancel-delete" type="button" class="button" autofocus>Keep it</button><button id="confirm-delete" type="button" class="button danger">Delete</button></div>
+  </dialog>
 
   <dialog id="setup-dialog" class="info-dialog">
     <button class="icon-button dialog-close" data-close-dialog aria-label="Close dialog"><svg class="icon"><use href="#i-close"/></svg></button>
