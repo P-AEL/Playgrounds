@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { SharedStore, loadPlaces, jsonRequest, searchCity } from "../lib/api.js";
+import { SharedStore, loadPlaces, jsonRequest, searchCity, waitForBackend } from "../lib/api.js";
 const config = { apiBaseUrl: "https://api.example.test" };
 const place = { id: "node/10", name: "Playground", latitude: 52, longitude: 13, kind: "playground" };
 const response = (data, status = 200) => new Response(status === 204 ? null : JSON.stringify(data), { status });
@@ -84,4 +84,29 @@ test("place search requests English names", async () => {
   await searchCity("Copenhagen", "https://geocode.example.test", async url => {
     assert.equal(new URL(url).searchParams.get("accept-language"), "en"); return response([]);
   });
+});
+test("a sleeping backend wakes through temporary errors and HTML without retrying writes", async () => {
+  let clock = 0, requests = 0;
+  const options = { timeoutMs: 10000, retryDelayMs: 2000, now: () => clock, wait: async ms => { clock += ms; } };
+  await waitForBackend("https://app.onrender.com", async () => {
+    if (++requests === 1) return response({}, 503);
+    if (requests === 2) return new Response("<html>Starting</html>");
+    return response({ status: "ok", storage: "mongodb" });
+  }, options);
+  assert.equal(requests, 3);
+  let healthRequests = 0, writes = 0;
+  const store = new SharedStore({ apiBaseUrl: "https://app.onrender.com" }, async url => {
+    if (new URL(url).searchParams.get("resource") === "health") { healthRequests++; return response({ status: "ok", storage: "mongodb" }); }
+    writes++; return response({}, 503);
+  }, options);
+  await assert.rejects(store.saveRating(place, { variety: 1, climbability: 2, pull_ups: 3 }));
+  assert.equal(healthRequests, 1); assert.equal(writes, 1);
+});
+test("startup wait is bounded and access errors fail immediately", async () => {
+  let clock = 0, requests = 0;
+  const options = { timeoutMs: 5000, retryDelayMs: 2000, now: () => clock, wait: async ms => { clock += ms; } };
+  await assert.rejects(waitForBackend("https://app.onrender.com", async () => response({}, 503), options), /taking longer/);
+  assert.equal(clock, 5000);
+  await assert.rejects(waitForBackend("https://app.onrender.com", async () => { requests++; return response({}, 403); }, options), /rejected/);
+  assert.equal(requests, 1);
 });

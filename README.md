@@ -62,6 +62,16 @@ The container runs as the unprivileged `node` user. It serves the app and API on
 
 Without Docker, run `npm ci --omit=dev`, `npm run build`, then `npm start` with `NODE_ENV=production`, `HOST=0.0.0.0`, `PORT`, and the MongoDB variables set on the server. In production, credentials are read from the environment rather than local files.
 
+### Render deployment
+
+The live API is [playground-atlas-api.onrender.com](https://playground-atlas-api.onrender.com/api/atlas?resource=health), deployed from `main` as a **free Docker web service in Frankfurt**. Manage it in the [Render Dashboard](https://dashboard.render.com/web/srv-dbuf0t9srm7s73eltsb0). Its private environment holds `MONGODB_URI`; GitHub Pages receives only the public API URL.
+
+The included `render.yaml` describes the same configuration for a future Blueprint setup. The existing service is managed directly through Render; committing this file does not create or synchronize a Blueprint. Keep future Dashboard and Blueprint settings consistent if you choose to adopt it.
+
+Atlas network access permits the service's outbound ranges, currently `74.220.51.0/24` and `74.220.59.0/24`. Confirm them under **Connect → Outbound IP Addresses** in the service dashboard before changing the allowlist. These ranges are shared by other Render services in Frankfurt; database credentials are still required.
+
+The free instance can sleep while idle. The frontend waits up to 90 seconds for a Render backend to wake before loading shared data. It never automatically retries a rating or visit write. Merges into `main` automatically deploy both Render and GitHub Pages.
+
 ### Optional: deploy the same backend on Vercel
 
 1. Import this GitHub repository as a Vercel project. The included `vercel.json` configures the static build and Node.js function.
@@ -78,7 +88,7 @@ This is a hosting option for the same custom backend, not a replacement database
 
    | Name | Example |
    | --- | --- |
-   | `ATLAS_API_URL` | `https://your-backend.example.com` |
+   | `ATLAS_API_URL` | `https://playground-atlas-api.onrender.com` |
 
 2. Keep **Settings → Pages → Source → GitHub Actions**.
 3. Run **Actions → Publish Playground Atlas → Run workflow**, or merge a change into `main`.

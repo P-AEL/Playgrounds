@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: playground-atlas-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    repo: https://github.com/P-AEL/Playgrounds
+    branch: main
+    autoDeployTrigger: commit
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: ALLOWED_ORIGINS
+        value: https://p-ael.github.io
+      - key: MONGODB_DB
+        value: playground_atlas
+      - key: MONGODB_URI
+        sync: false
