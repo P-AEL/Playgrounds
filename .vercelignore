@@ -1,0 +1,8 @@
+.git/
+.env
+.env.*
+*.env
+test-results/
+tests/
+node_modules/
+supabase/

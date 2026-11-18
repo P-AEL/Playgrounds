@@ -98,7 +98,7 @@
     <div class="eyebrow">ONE COLLECTION. EVERY DEVICE.</div>
     <h2>Better outside, together.</h2>
     <p>Visits and ratings are stored centrally. Each playground has one shared rating. Anyone with access to this site can update it, without signing in.</p>
-    <div id="setup-instructions"><ol><li>Create a project on the <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">Supabase Free plan</a>.</li><li>Run <code>supabase/schema.sql</code> in the SQL editor.</li><li>In GitHub, set the repository variables <code>SUPABASE_URL</code> and <code>SUPABASE_PUBLISHABLE_KEY</code>, then publish the site.</li></ol><p class="small-print">See the README for step-by-step instructions. You can explore places now; saving is disabled until storage is connected. Free projects may pause after inactivity and need to be resumed in the Supabase dashboard.</p></div>
+    <div id="setup-instructions"><p>This site uses a shared MongoDB database. The site owner needs to connect the backend before visits and ratings can be saved.</p><p>You can already explore the map and open any spot in Google Maps.</p><p class="small-print"><a href="https://github.com/P-AEL/Playgrounds#setup" target="_blank" rel="noopener noreferrer">Backend setup instructions ↗</a></p></div>
     <p id="connected-info" hidden>Shared storage is connected. Changes are loaded when you open the site, return to this tab or select Refresh shared data.</p>
     <button id="refresh-data" class="button primary" disabled><svg class="icon"><use href="#i-refresh"/></svg> Refresh shared data</button>
   </dialog>
@@ -109,8 +109,8 @@
     <div class="eyebrow">PLAYGROUND ATLAS</div><h2>There is more to your city.</h2>
     <p>Discover playgrounds and outdoor gyms from OpenStreetMap, log visits with a date and time, and rate Variety, Climbability and Pull ups possibility from 0 to 10.</p>
     <p>The map loads recorded places in the selected area. Move the map and select Search this area. Data quality and access on site cannot be guaranteed.</p>
-    <p>Records are shared through Supabase and are visible to visitors of this site. There are no individual profiles. Export saves the most recently loaded snapshot of the shared collection.</p>
-    <p class="small-print">Map areas are sent to OpenStreetMap and Overpass, submitted place names to Nominatim, and saved records to the configured Supabase project. Your location is used only when you select Near me; the subsequent search sends the map area to the map services.</p>
+    <p>Records are shared through MongoDB and are visible to visitors of this site. There are no individual profiles. Export saves the most recently loaded snapshot of the shared collection.</p>
+    <p class="small-print">Map areas are sent to OpenStreetMap and Overpass, submitted place names to Nominatim, and saved records to this site's backend and MongoDB database. Your location is used only when you select Near me; the subsequent search sends the map area to the map services.</p>
     <div class="source-links"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a><a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">Report a map issue ↗</a><a href="https://github.com/P-AEL/Playgrounds" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div>
   </dialog>
   <noscript>Please enable JavaScript to use the map and shared ratings.</noscript>

@@ -33,7 +33,7 @@ function showToast(message, error = false) {
 }
 
 function readableError(error, shared = false) {
-  const extra = shared ? " If Supabase is paused, resume the project in the dashboard." : "";
+  const extra = shared ? " Shared storage will be available again when the backend connection is restored." : "";
   if (error.name === "TimeoutError" || error.name === "AbortError") return `The request timed out. Please try again.${extra}`;
   if (error instanceof TypeError) return `The service is unavailable. Please check your internet connection.${extra}`;
   return error.message || "Something went wrong. Please try again.";

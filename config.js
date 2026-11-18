@@ -1,7 +1,6 @@
-// Public browser configuration. Never put a service_role / secret key here.
+// Public browser configuration. Never put database credentials here.
 export default {
-  supabaseUrl: "",
-  supabaseKey: "",
+  apiBaseUrl: "",
   defaultCenter: [55.6761, 12.5683],
   defaultZoom: 14,
   overpassUrl: "https://ovp.dresel.systems/api/interpreter",
