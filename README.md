@@ -1,82 +1,138 @@
 # Playground Atlas
 
-Spielplätze entdecken, Besuche mit Datum und Uhrzeit festhalten und eine gemeinsame Bewertung pro Spot abgeben. Statische Website für **GitHub Pages**, OpenStreetMap als Datenquelle und eine **Supabase-Free-Datenbank** für gemeinsame Einträge. Kein Login und keine individuellen Bewertungen. Die Oberfläche ist auf Englisch; die Standardstadt ist **Copenhagen / Kopenhagen**. Nach dem ersten Start merkt sich die Karte deinen letzten Ausschnitt.
+An English playground map starting in **Copenhagen**, with shared visits and one shared rating per playground. The frontend runs on **GitHub Pages**. A small, independently hosted **Node.js API** stores the records in **MongoDB**. The same Node.js server can also serve the entire app.
 
-## Funktionen
+## Features
 
-- Interaktive Karte mit Spielplätzen und optional Fitness-/Calisthenics-Spots aus OpenStreetMap.
-- Ortssuche, Standortsuche auf Knopfdruck und Suche im aktuellen Kartenausschnitt.
-- Besuche mit aktueller oder nachgetragener Uhrzeit. Speicherung als UTC, Anzeige in der lokalen Gerätezeitzone.
-- Genau eine gemeinsame Bewertung je Spielplatz: **Variety**, **Climbability**, **Pull ups possibility**, jeweils ganzzahlig **0 bis 10**. Gesamtscore = Mittelwert. 0 ist eine gültige Bewertung.
-- Filter, Sortierung und eine gemeinsame Sammlung unabhängig vom aktuellen Kartenausschnitt.
-- Google-Maps-Button öffnet die exakten Koordinaten, ohne Google-API-Key.
-- JSON-Export des zuletzt geladenen Datenbestands als Sicherung.
-- Responsive Ansicht für Desktop und Smartphone, Tastaturbedienung und reduzierte Animationen.
+- OpenStreetMap playgrounds and optional outdoor fitness/calisthenics spots, with search, filters and marker clustering.
+- Visits with a date and time, including past visits. Timestamps are stored as UTC and displayed in the device's local time zone.
+- One shared rating per OSM place ID: **Variety**, **Climbability**, **Pull ups possibility**, each an integer from **0 to 10**. Zero is a valid score. The overall score is the mean.
+- Google Maps links to each spot's coordinates.
+- A shared collection across devices, plus JSON export of the last loaded snapshot.
+- Responsive desktop/mobile layout and keyboard support.
 
-## Kostenlos einrichten
+## How storage works
 
-### 1. Supabase-Projekt anlegen
-
-1. Unter [supabase.com/dashboard](https://supabase.com/dashboard) ein Konto und ein Projekt im **Free-Tarif** erstellen, vorzugsweise mit EU-Region.
-2. Im Projekt **SQL Editor → New query** öffnen.
-3. Den gesamten Inhalt von [`supabase/schema.sql`](supabase/schema.sql) einfügen und ausführen. Das Skript kann erneut ausgeführt werden, ohne Einträge zu löschen.
-4. Unter **Project Settings → API Keys** die **Projekt-URL** und einen **Publishable key** (`sb_publishable_…`) kopieren. Ein bisheriger `anon`-Key funktioniert ebenfalls.
-
-**Keinen Secret-/Service-Role-Key verwenden.** Der Publishable-Key ist für den öffentlichen Browserzugriff vorgesehen. Schreibvorgänge sind auf zwei Datenbankfunktionen beschränkt. Direkte Tabellenänderungen und Löschen von Besuchen sind für Besucher gesperrt.
-
-### 2. GitHub Pages konfigurieren
-
-1. Änderungen auf den Branch `main` dieses Repositories pushen.
-2. Im Repository **Settings → Secrets and variables → Actions → Variables** zwei Repository-Variablen setzen:
-
-   | Name | Wert |
-   | --- | --- |
-   | `SUPABASE_URL` | Projekt-URL, z. B. `https://PROJECT.supabase.co` |
-   | `SUPABASE_PUBLISHABLE_KEY` | Öffentlicher Publishable- oder Anon-Key |
-
-3. Unter **Settings → Pages → Build and deployment → Source** **GitHub Actions** auswählen.
-4. Unter **Actions → Publish Playground Atlas → Run workflow** ausführen. Weitere Pushes auf `main` veröffentlichen automatisch.
-5. Der Workflow zeigt die tatsächliche Seiten-URL an. Für dieses Repository ist die erwartete Projektadresse `https://p-ael.github.io/Playgrounds/`.
-
-Die Seite funktioniert unter dem Repository-Unterpfad. Es gibt keinen Build-Service, keine Laufzeit-Abhängigkeiten und keinen Node-Server im Hosting.
-
-### 3. Auf zwei Geräten prüfen
-
-Auf Gerät A einen Spot öffnen, einen Besuch und eine Bewertung speichern. Auf Gerät B dieselbe Seite öffnen. Beides muss sichtbar sein. Änderungen werden beim Öffnen, bei Rückkehr zum Tab, einmal pro Minute im sichtbaren Tab und manuell über den Speicherstatus → **Gemeinsame Daten aktualisieren** geladen. Bei parallelen Änderungen gilt die zuletzt gespeicherte Bewertung; Besuche bleiben einzelne Datensätze.
-
-Ohne Supabase-Konfiguration ist die Karte bereits nutzbar. Speichern bleibt erkennbar deaktiviert und wird **nicht heimlich lokal ersetzt**. Bei einem Verbindungsfehler bestätigt die App keinen erfolgreichen Speichervorgang. Bereits geladene Daten bleiben sichtbar.
-
-## Kosten und gemeinsamer Zugriff
-
-- [GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages) kann für ein öffentliches Repository im kostenlosen GitHub-Tarif verwendet werden.
-- [Supabase Free](https://supabase.com/pricing) umfasst derzeit 500 MB Datenbank. Für eine kleine Sammlung reicht das voraussichtlich aus. Es wird kein kostenpflichtiger Tarif vorausgesetzt.
-- Free-Projekte können nach ungefähr einer Woche ohne ausreichende Aktivität pausieren. Ein pausiertes Projekt muss im Dashboard über **Resume/Restore** reaktiviert werden; ein Website-Schreibzugriff startet es nicht automatisch. [Dokumentation](https://supabase.com/docs/guides/platform/free-project-pausing).
-- Ohne Login können alle Besucher die gemeinsame Bewertung ändern und Besuche hinzufügen. Auch die Besuchszeiten sind öffentlich lesbar. Es werden keine persönlichen Profile, Gerätenamen oder Standortverläufe gespeichert. Ein privates GitHub-Repository allein macht eine GitHub Page nicht privat.
-- Datenbankprüfungen begrenzen gültige Werte und sperren direkte Tabellen-Schreibzugriffe. Die öffentlichen Schreibfunktionen verhindern keinen Spam. Für größere öffentliche Nutzung sollten Zugriffskontrolle oder Rate Limits ergänzt werden.
-
-## Lokal starten
-
-Voraussetzung: Node.js 22 oder neuer. Keine Paketinstallation nötig.
-
-```sh
-npm run dev
+```text
+GitHub Pages (browser) → HTTPS /api/atlas → MongoDB Atlas
 ```
 
-Adresse: `http://127.0.0.1:4173`. Für lokale gemeinsame Speicherung die öffentlichen Supabase-Werte in `config.js` eintragen. Alternativ einen Build mit den Umgebungsvariablen `SUPABASE_URL` und `SUPABASE_PUBLISHABLE_KEY` erstellen und `dist/` mit einem statischen Webserver öffnen.
+The browser sends only playground metadata, ratings and visits. The MongoDB connection string and password stay on the backend. GitHub Pages serves static files; it does not run a Node.js process. A MongoDB connection string is not a browser HTTP endpoint.
+
+The API is ordinary Node.js code: deploy it on your own server, run its Docker image, or use the optional Vercel adapter. There is no vendor-specific database SDK in the frontend.
+
+## Setup
+
+### Run your own backend locally
+
+Requires Node.js 22 or newer.
+
+1. Keep your local credentials in `atlas-credentials.env` or `.env`. These files are ignored by Git and excluded from the static build, Docker context and Vercel uploads.
+2. Set the backend variables:
+
+   | Variable | Purpose |
+   | --- | --- |
+   | `MONGODB_URI` | Complete Atlas URI with the database user's credentials; backend only |
+   | `MONGODB_DB` | Optional database name, default `playground_atlas` |
+   | `ALLOWED_ORIGINS` | Allowed browser origins, default `https://p-ael.github.io`; separate multiple origins with commas |
+   | `HOST`, `PORT` | Listening address and port; default `127.0.0.1:4173` |
+
+   See [`.env.example`](.env.example). Existing environment variables take precedence over local files. The supplied `MONGODB_USERNAME` and `MONGODB_PASSWORD` fields are not required separately when already included in `MONGODB_URI`.
+
+3. Install and start:
+
+   ```sh
+   npm ci
+   npm run check:db
+   npm run dev
+   ```
+
+4. Open **http://127.0.0.1:4173**. This starts both the frontend and the real MongoDB API; the local app automatically uses its own backend.
+
+The Atlas database user needs read/write access to the chosen app database. Add the backend server's outgoing IP address to the Atlas network access list. The API creates the visit lookup index automatically.
+
+### Deploy on your own server with Docker
+
+```sh
+docker build -t playground-atlas .
+docker run --env-file atlas-credentials.env -e ALLOWED_ORIGINS=https://p-ael.github.io -p 8080:8080 playground-atlas
+```
+
+The container runs as the unprivileged `node` user. It serves the app and API on port 8080. Put it behind your server's HTTPS reverse proxy and use its public HTTPS URL for the GitHub Page. Supply credentials at runtime; never bake them into the image.
+
+Without Docker, run `npm ci --omit=dev`, `npm run build`, then `npm start` with `NODE_ENV=production`, `HOST=0.0.0.0`, `PORT`, and the MongoDB variables set on the server. In production, credentials are read from the environment rather than local files.
+
+### Optional: deploy the same backend on Vercel
+
+1. Import this GitHub repository as a Vercel project. The included `vercel.json` configures the static build and Node.js function.
+2. Add `MONGODB_URI`, optional `MONGODB_DB`, and `ALLOWED_ORIGINS=https://p-ael.github.io` as **server environment variables**.
+3. Deploy. The app served by Vercel automatically uses its own API.
+4. Confirm `https://YOUR_PROJECT.vercel.app/api/atlas?resource=health` returns `{"status":"ok","storage":"mongodb"}`.
+5. Use that public backend origin in the GitHub Page configuration below.
+
+This is a hosting option for the same custom backend, not a replacement database service. Vercel's [Hobby plan](https://vercel.com/docs/plans/hobby) is for personal, non-commercial projects. Atlas network access must allow connections from the selected hosting environment.
+
+### Connect the existing GitHub Page
+
+1. In **Settings → Secrets and variables → Actions → Variables**, set the public repository variable:
+
+   | Name | Example |
+   | --- | --- |
+   | `ATLAS_API_URL` | `https://your-backend.example.com` |
+
+2. Keep **Settings → Pages → Source → GitHub Actions**.
+3. Run **Actions → Publish Playground Atlas → Run workflow**, or merge a change into `main`.
+
+The frontend is published at [p-ael.github.io/Playgrounds](https://p-ael.github.io/Playgrounds/). Only the public backend URL is included in its build. **Never put `MONGODB_URI`, a database password, or the credentials ENV file into a public GitHub variable or commit.**
+
+Until `ATLAS_API_URL` is set, the map still works and saving is explicitly disabled. Connection failures never fall back to local-only storage or falsely confirm a successful write.
+
+## API
+
+A single endpoint, `/api/atlas`, handles all operations:
+
+| Request | Result |
+| --- | --- |
+| `GET ?resource=health` | Checks the database connection |
+| `GET ?resource=places&limit=500&after=CURSOR` | A page of saved playgrounds and shared ratings |
+| `GET ?resource=visits&limit=500&after=CURSOR` | A page of visits |
+| `POST {action: "rate", place, rating}` | Upserts the rating for the stable OSM ID |
+| `POST {action: "visit", place, visitedAt, visitId}` | Records a visit using an idempotent UUID |
+
+List responses contain `items` and `nextCursor`. The browser loads all pages. Invalid coordinates, place IDs, ratings, future dates and oversized requests are rejected. Client-supplied database operators and extra fields are discarded. Database errors are returned without connection details or credentials.
+
+MongoDB collections:
+
+- `playgrounds`: OSM place ID as unique `_id`, public place metadata, the three rating values and `rated_at`.
+- `playground_visits`: UUID as unique `_id`, `playground_id`, `visited_at` and `created_at`.
+
+Visits do not overwrite ratings. Retrying the same visit UUID does not create a duplicate. All visitors share the same rating; the last successful rating update wins. The API exposes no delete action.
+
+## Verification
 
 ```sh
 npm test
 npm run build
+npm run check:db
+node scripts/test-mongo.mjs
 ```
 
-Der Build schreibt nur Website-Dateien nach `dist/`; Datenbankschema, Tests und Git-Dateien werden nicht veröffentlicht. Geheime Supabase-Schlüssel werden vom Build abgewiesen.
+The regular test suite needs no external database. The last command is an optional integration test against your configured MongoDB. It uses two uniquely named disposable collections, verifies reads/writes through two HTTP clients, and removes only those test collections afterwards. It does not modify the app's records.
 
-## Datenquellen und Grenzen
+Cross-device check: save a visit and a rating on device A, open the site on device B, and confirm both appear. Data refreshes on opening, returning to the tab, every minute while visible, and manually through **Refresh shared data**.
 
-Overpass liefert `leisure=playground` sowie optional `leisure=fitness_station`. Primär wird der [Dresel-Mirror](https://ovp.dresel.systems/en/) für Europa/Nordamerika genutzt; bei Ausfall oder leerem Ergebnis wird die globale FOSSGIS-Instanz versucht. Kein vollständiger weltweiter Abruf und keine Vollständigkeitsgarantie. Suche nur im sichtbaren Bereich (max. 650 km², höchstens 35 km je Seite). Ziehen/Zoomen löst keine Spielplatzsuche aus; dafür **Diesen Bereich durchsuchen** verwenden. Ortsnamen werden nur beim Absenden an Nominatim geschickt, ohne Autocomplete. Der letzte OSM-Suchbereich wird 24 Stunden lokal zwischengespeichert; Bewertungen und Besuche kommen aus der gemeinsamen Datenbank.
+## Shared access and costs
 
-Öffentliche OSM-/Overpass-/Nominatim-Dienste sind für geringe Nutzung gedacht und können ausfallen oder begrenzen. Für größere Nutzung geeignete eigene/gehostete Dienste über `config.js` konfigurieren. Keine Offline-Kacheldownloads oder Vorabdownloads. OSM-Attribution bleibt sichtbar; der Browser sendet seinen normalen Referer. Hinweise: [Tiles](https://operations.osmfoundation.org/policies/tiles/), [Nominatim](https://operations.osmfoundation.org/policies/nominatim/), [Overpass](https://wiki.openstreetmap.org/wiki/Overpass_API).
+There are no individual user accounts: visitors can read the collection, change the shared rating and add visits. Visit times are public to visitors. CORS limits permitted browser origins but is not authentication; public API writes remain intentionally available without login.
 
-Google Maps wird nur über den Standort-Link geöffnet. Keine Google-Ortsdaten werden gescrapt oder gespeichert. [Google-Richtlinie](https://developers.google.com/maps/documentation/places/web-service/policies).
+[MongoDB Atlas Free](https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/) offers a limited free cluster and may pause after 30 days without connections. Backend hosting has its own limits. No paid hosting plan is required by this code.
 
-Leaflet 1.9.4 und MarkerCluster 1.5.3 liegen lokal in `assets/`; Lizenzen: [`assets/LEAFLET-LICENSE`](assets/LEAFLET-LICENSE), [`assets/MARKERCLUSTER-LICENSE`](assets/MARKERCLUSTER-LICENSE). Nahe Kartenpunkte werden gruppiert und beim Vergrößern getrennt. Keine externen Schriftarten oder Analyse-Tracker.
+## Map sources
+
+The app queries `leisure=playground` and optional `leisure=fitness_station` from OpenStreetMap through Overpass. It uses the [Dresel mirror](https://ovp.dresel.systems/en/) with global FOSSGIS fallback. Search is limited to the visible area (at most 650 km² and 35 km per side), runs only on request, and does not guarantee complete coverage. The last English search result is cached for 24 hours locally. Ratings and visits always come from MongoDB.
+
+Nominatim receives city searches only on form submission, without autocomplete. Map tiles are loaded only for interactive viewing; no offline/bulk tile downloads. Keep attribution visible. Public map services are best-effort and suitable for light usage; providers can be changed in `config.js`.
+
+Policies: [OSM tiles](https://operations.osmfoundation.org/policies/tiles/), [Nominatim](https://operations.osmfoundation.org/policies/nominatim/), [Overpass](https://wiki.openstreetmap.org/wiki/Overpass_API). Google Maps is opened only via coordinate links; no Google place data is scraped.
+
+Vendored libraries: Leaflet 1.9.4 ([license](assets/LEAFLET-LICENSE)) and MarkerCluster 1.5.3 ([license](assets/MARKERCLUSTER-LICENSE)). No external fonts or analytics trackers.
