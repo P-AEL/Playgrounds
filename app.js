@@ -21,6 +21,8 @@ let areaPlaces = [], sharedPlaces = new Map(), visits = new Map(), markers = new
 let filter = "all", view = "area", selectedId = null, sort = "distance", showFitness = true;
 let map, markerLayer, loadingArea = false, loadingShared = false, sharedLoaded = false, writeBusy = false;
 let ratingDirty = false, ratingDraft = null, querySequence = 0, toastTimer, lastCitySearch = 0, pendingVisit = null;
+let pendingDeletion = null, detailReturnToList = false;
+const mobileLayout = matchMedia("(max-width:760px), (max-width:1000px) and (max-height:500px)");
 let referencePoint = { latitude: config.defaultCenter[0], longitude: config.defaultCenter[1] };
 
 function showToast(message, error = false) {
@@ -50,6 +52,21 @@ function setSyncState(state) {
 function canWrite() { return store.ready && sharedLoaded && !writeBusy; }
 function findPlace(id) { return sharedPlaces.get(id) ?? areaPlaces.find(p => p.id === id); }
 function placeVisits(id) { return visits.get(id) ?? []; }
+
+function updateMobileNavigation() {
+  const showingList = $(".workspace").classList.contains("show-list");
+  const screen = showingList ? (view === "saved" ? "saved" : "list") : "map";
+  $$('[data-mobile-screen]').forEach(button => {
+    const active = button.dataset.mobileScreen === screen;
+    button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active));
+  });
+  $(".map-section").inert = mobileLayout.matches && showingList;
+}
+
+function showMobileList(show) {
+  $(".workspace").classList.toggle("show-list", show);
+  updateMobileNavigation();
+}
 
 function render() {
   if (!map) return;
@@ -87,7 +104,7 @@ function renderMarkers(places) {
   for (const id of visibleIds) {
     const place = findPlace(id);
     const state = score(place) !== null ? "rated" : placeVisits(id).length ? "visited" : "";
-    const markerIcon = L.divIcon({ className: "atlas-marker", html: `<span class="marker-pin ${state} ${id === selectedId ? "selected" : ""}">${icon(placeVisits(id).length ? "check" : place.kind === "fitness_station" ? "bar" : "swing")}</span>`, iconSize: [30, 34], iconAnchor: [15, 33], tooltipAnchor: [0, -34] });
+    const markerIcon = L.divIcon({ className: "atlas-marker", html: `<span class="marker-pin ${state} ${id === selectedId ? "selected" : ""}">${icon(placeVisits(id).length ? "check" : place.kind === "fitness_station" ? "bar" : "swing")}</span>`, iconSize: [44, 48], iconAnchor: [22, 41], tooltipAnchor: [0, -42] });
     if (!markers.has(id)) {
       const marker = L.marker([place.latitude, place.longitude], { icon: markerIcon, title: place.name, alt: place.name, keyboard: true });
       const label = document.createElement("span"); label.textContent = place.name;
@@ -101,14 +118,14 @@ function renderMarkers(places) {
 
 function selectPlace(id) {
   if (writeBusy) return;
+  detailReturnToList = mobileLayout.matches && $(".workspace").classList.contains("show-list");
   selectedId = id; ratingDirty = false; ratingDraft = null; pendingVisit = null;
-  $(".workspace").classList.remove("show-list");
-  $("#mobile-list-toggle").setAttribute("aria-expanded", "false");
+  showMobileList(false);
   renderDetail(); render();
   if (markers.has(id) && markerLayer.zoomToShowLayer) markerLayer.zoomToShowLayer(markers.get(id), () => {});
   const place = findPlace(id);
   if (place) {
-    const mobile = matchMedia("(max-width:700px)").matches;
+    const mobile = mobileLayout.matches;
     const size = map.getSize();
     if (mobile) map.panTo([place.latitude, place.longitude], { animate: false });
     else if (size.x > 450) map.panInside([place.latitude, place.longitude], { paddingTopLeft: [45, 90], paddingBottomRight: [Math.min(395, size.x * .65), 75], animate: false });
@@ -123,9 +140,13 @@ function closeDetail() {
   selectedId = null; ratingDirty = false; ratingDraft = null;
   $("#detail-panel").hidden = true;
   $(".map-section").classList.remove("details-open");
+  if (mobileLayout.matches && detailReturnToList) showMobileList(true);
+  detailReturnToList = false;
   render();
   const card = $$('[data-place]').find(el => el.dataset.place === previous);
-  card?.focus({ preventScroll: true });
+  if (mobileLayout.matches && !$(".workspace").classList.contains("show-list")) $("[data-mobile-screen='map']").focus({ preventScroll: true });
+  else if (card) card.focus({ preventScroll: true });
+  else (mobileLayout.matches ? $(".mobile-nav button.active") : $(".view-tab.active"))?.focus({ preventScroll: true });
 }
 
 function renderDetail() {
@@ -135,7 +156,7 @@ function renderDetail() {
   const draft = ratingDraft ?? (value === null ? { variety: 0, climbability: 0, pull_ups: 0 } : place);
   const writable = canWrite();
   const scrollTop = panel.scrollTop;
-  panel.innerHTML = `<div class="detail-cover"><button id="close-detail" class="icon-button" aria-label="Close playground details" ${writeBusy ? "disabled" : ""}>${icon("close")}</button>
+  panel.innerHTML = `<div class="detail-toolbar"><span class="sheet-handle" aria-hidden="true"></span><button id="close-detail" class="icon-button" aria-label="Close playground details" ${writeBusy ? "disabled" : ""}>${icon("close")}</button></div><div class="detail-cover">
     <div class="eyebrow">${icon(place.kind === "fitness_station" ? "bar" : "swing")} ${place.kind === "fitness_station" ? "FITNESS & CALISTHENICS" : "TIME TO GO OUTSIDE"}</div>
     <h2>${escape(place.name)}</h2><p>${escape(place.address || "A new place for your next adventure.")}</p>
     <div class="detail-score"><strong>${value === null ? "—" : decimal(value)}</strong><span>/ 10</span><span class="score-label">${value === null ? "Not rated yet" : "Shared rating"}</span></div></div>
@@ -145,12 +166,14 @@ function renderDetail() {
     <button id="visit-now" class="button soft full" ${writable ? "" : "disabled"}>${icon("check")} ${writeBusy ? "Saving …" : "Log a visit now"}</button>
     <button id="visit-other" class="visit-other" ${writable ? "" : "disabled"}>Add a different date & time</button>
     <form id="visit-form" class="visit-form" hidden><label for="visit-time">Visited on (local time)</label><input id="visit-time" type="datetime-local" required min="2000-01-01T00:00" max="${toLocalDateTime()}" value="${toLocalDateTime()}"><button class="button primary" type="submit">Save visit</button></form>
-    ${history.length ? `<ul class="visit-history">${history.slice(0, 5).map(v => `<li>${icon("clock")}<time datetime="${escape(v.visited_at)}">${dateLabel(v.visited_at)}</time><small>Visited</small></li>`).join("")}</ul>${history.length > 5 ? `<p class="last-updated">${history.length} visits in total · showing the latest 5</p>` : ""}` : ""}</section>
+    ${history.length ? `<details class="visit-log" open><summary>${history.length} ${history.length === 1 ? "visit" : "visits"}</summary><ul class="visit-history">${history.map(v => `<li>${icon("clock")}<time datetime="${escape(v.visited_at)}">${dateLabel(v.visited_at)}</time><button type="button" class="delete-visit" data-delete-visit="${escape(v.id)}" aria-label="Delete visit on ${escape(dateLabel(v.visited_at))}" title="Delete visit" ${writable ? "" : "disabled"}>${icon("trash")}</button></li>`).join("")}</ul></details>` : ""}</section>
     <form id="rating-form" class="detail-section"><h3 class="section-heading">${icon("star")} How good is this spot?</h3><p class="section-caption">One shared rating. Three perspectives.<br>0 = not possible · 10 = excellent</p>
     ${CATEGORIES.map(category => `<label class="rating-field" for="rating-${category.key}" title="${category.description}"><span class="rating-label">${icon(category.icon)} ${category.label}<output id="output-${category.key}" for="rating-${category.key}">${draft[category.key]}</output></span><input id="rating-${category.key}" name="${category.key}" aria-label="${category.label}" type="range" min="0" max="10" step="1" value="${draft[category.key]}" ${writeBusy ? "disabled" : ""}><span class="rating-ticks"><span>0</span><span>5</span><span>10</span></span></label>`).join("")}
     <button id="save-rating" type="submit" class="button primary full" ${writable ? "" : "disabled"}>${icon("check")} ${writeBusy ? "Saving …" : value === null ? "Save rating" : "Update rating"}</button>
+    ${value !== null ? `<button id="delete-rating" type="button" class="button danger-outline full" ${writable ? "" : "disabled"}>${icon("trash")} Delete rating</button>` : ""}
     ${!store.ready ? '<p class="storage-hint"><button type="button" id="detail-setup">Connect shared storage</button> to save visits and ratings.</p>' : !sharedLoaded ? '<p class="storage-hint">Shared storage is not available yet. Please check the connection and refresh.</p>' : '<p class="last-updated">Visible to everyone · changes replace the current rating.</p>'}
-    ${place.rated_at ? `<p class="last-updated">Last rated on ${dateLabel(place.rated_at)}</p>` : ""}</form></div>`;
+    ${place.rated_at ? `<p class="last-updated">Last rated on ${dateLabel(place.rated_at)}</p>` : ""}</form>
+    ${sharedPlaces.has(place.id) ? `<section class="detail-section remove-section"><h3 class="section-heading">Manage saved entry</h3><p class="section-caption">Remove this spot's shared rating and all logged visits. The playground stays on the OpenStreetMap map.</p><button id="delete-place" type="button" class="button danger-outline full" ${writable ? "" : "disabled"}>${icon("trash")} Delete saved entry</button></section>` : ""}</div>`;
   panel.hidden = false;
   panel.scrollTop = scrollTop;
   $(".map-section").classList.add("details-open");
@@ -165,6 +188,58 @@ function renderDetail() {
     ratingDraft = Object.fromEntries(CATEGORIES.map(({ key }) => [key, Number($(`#rating-${key}`).value)]));
   }));
   $("#rating-form").addEventListener("submit", saveRating);
+  $$('[data-delete-visit]').forEach(button => button.addEventListener("click", () => requestDeletion("visit", button.dataset.deleteVisit)));
+  $("#delete-rating")?.addEventListener("click", () => requestDeletion("rating"));
+  $("#delete-place")?.addEventListener("click", () => requestDeletion("place"));
+}
+
+function requestDeletion(target, visitId) {
+  if (!canWrite()) return;
+  const place = findPlace(selectedId);
+  if (!place) return;
+  pendingDeletion = { target, placeId: place.id, visitId };
+  $("#delete-title").textContent = ({ visit: "Delete this visit?", rating: "Delete this rating?", place: "Delete saved entry?" })[target];
+  const visit = placeVisits(place.id).find(v => v.id === visitId);
+  if (target === "visit" && !visit) { pendingDeletion = null; showToast("This visit has already been removed. Please refresh."); return; }
+  $("#delete-error").hidden = true;
+  $("#delete-message").textContent = target === "visit" ? `Remove the visit on ${dateLabel(visit.visited_at)} from ${place.name}? Other visits and the rating will be kept.`
+    : target === "rating" ? `Remove the shared rating for ${place.name}? All logged visits will be kept.`
+    : `Remove the shared rating and all logged visits for ${place.name}? The playground will still appear on the map.`;
+  $("#delete-dialog").showModal();
+}
+
+async function confirmDeletion() {
+  if (!pendingDeletion || !canWrite()) return;
+  const { target, placeId, visitId } = pendingDeletion;
+  writeBusy = true; renderDetail();
+  $("#delete-error").hidden = true;
+  $("#confirm-delete").disabled = true; $("#cancel-delete").disabled = true;
+  $("#confirm-delete").textContent = "Deleting …";
+  let removed = false;
+  try {
+    const result = await store.deleteEntry(target, placeId, visitId);
+    if (target === "visit") {
+      const history = placeVisits(placeId).filter(visit => visit.id !== visitId);
+      if (history.length) visits.set(placeId, history); else visits.delete(placeId);
+    } else if (target === "rating") {
+      if (validPlace(result.place)) sharedPlaces.set(placeId, result.place); else sharedPlaces.delete(placeId);
+      ratingDirty = false; ratingDraft = null;
+    } else {
+      sharedPlaces.delete(placeId); visits.delete(placeId); ratingDirty = false; ratingDraft = null; pendingVisit = null;
+    }
+    removed = true; setSyncState("connected");
+    showToast(({ visit: "Visit deleted for everyone.", rating: "Shared rating deleted.", place: "Saved rating and visits deleted for everyone." })[target]);
+    $("#delete-dialog").close();
+  } catch (error) {
+    setSyncState("error");
+    $("#delete-error").textContent = readableError(error, true); $("#delete-error").hidden = false;
+  }
+  finally {
+    writeBusy = false;
+    $("#confirm-delete").disabled = false; $("#cancel-delete").disabled = false; $("#confirm-delete").textContent = "Delete";
+    if (removed && (target === "place" || !findPlace(selectedId))) closeDetail();
+    else { render(); renderDetail(); }
+  }
 }
 
 async function saveRating(event) {
@@ -217,7 +292,8 @@ async function syncShared({ announce = false } = {}) {
     for (const history of nextVisits.values()) history.sort((a, b) => b.visited_at.localeCompare(a.visited_at));
     visits = nextVisits; sharedLoaded = true;
     setSyncState("connected"); render();
-    if (selectedId && !ratingDirty) renderDetail();
+    if (selectedId && !findPlace(selectedId)) closeDetail();
+    else if (selectedId && !ratingDirty) renderDetail();
     if (announce) showToast("Shared data is up to date.");
   } catch (error) { setSyncState("error"); if (announce || !sharedLoaded) showToast(readableError(error, true), true); }
   finally { loadingShared = false; refreshButton.disabled = false; }
@@ -264,7 +340,11 @@ $("#sync-button").addEventListener("click", openSetup);
 $("#setup-nudge-button").addEventListener("click", openSetup);
 $("#info-button").addEventListener("click", () => $("#about-dialog").showModal());
 $$('[data-close-dialog]').forEach(button => button.addEventListener("click", () => button.closest("dialog").close()));
-$$('dialog').forEach(dialog => dialog.addEventListener("click", event => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) dialog.close(); } }));
+$$('dialog').forEach(dialog => dialog.addEventListener("click", event => { if (event.target === dialog && !(dialog.id === "delete-dialog" && writeBusy)) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) dialog.close(); } }));
+$("#cancel-delete").addEventListener("click", () => $("#delete-dialog").close());
+$("#confirm-delete").addEventListener("click", confirmDeletion);
+$("#delete-dialog").addEventListener("cancel", event => { if (writeBusy) event.preventDefault(); });
+$("#delete-dialog").addEventListener("close", () => { pendingDeletion = null; if (selectedId) $("#close-detail")?.focus({ preventScroll: true }); });
 $("#refresh-data").addEventListener("click", () => syncShared({ announce: true }));
 $("#search-area").addEventListener("click", () => searchArea());
 $("#place-list").addEventListener("click", event => { const card = event.target.closest("[data-place]"); if (card) selectPlace(card.dataset.place); });
@@ -273,24 +353,27 @@ $$('[data-filter]').forEach(button => button.addEventListener("click", () => {
   $$('[data-filter]').forEach(b => { b.classList.toggle("active", b === button); b.setAttribute("aria-pressed", String(b === button)); });
   render();
 }));
-$$('[data-view]').forEach(button => button.addEventListener("click", () => {
-  view = button.dataset.view;
-  $$('[data-view]').forEach(b => { b.classList.toggle("active", b === button); b.setAttribute("aria-pressed", String(b === button)); });
+function setCollectionView(nextView) {
+  view = nextView;
+  $$('[data-view]').forEach(button => { const active = button.dataset.view === view; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); });
+  updateMobileNavigation();
   render();
   if (view === "saved" && sharedPlaces.size) {
     const coords = [...sharedPlaces.values()].filter(p => showFitness || p.kind !== "fitness_station").map(p => [p.latitude, p.longitude]);
     if (coords.length) map.fitBounds(coords, { padding: [50, 80], maxZoom: 15, animate: false });
   }
-}));
+}
+$$('[data-view]').forEach(button => button.addEventListener("click", () => setCollectionView(button.dataset.view)));
 $("#sort-select").addEventListener("change", event => { sort = event.target.value; render(); });
 $("#fitness-input").addEventListener("change", event => { showFitness = event.target.checked; render(); });
-$("#mobile-list-toggle").setAttribute("aria-expanded", "false");
-$("#mobile-list-toggle").addEventListener("click", () => {
-  const showing = $(".workspace").classList.toggle("show-list");
-  $("#mobile-list-toggle").setAttribute("aria-expanded", String(showing));
-  $("#mobile-list-toggle").setAttribute("aria-label", showing ? "Show map" : "Show list");
-  $("#mobile-list-toggle").innerHTML = `${icon(showing ? "pin" : "list")}<span>${showing ? "Show map" : "Show list"}</span>`;
-});
+$$('[data-mobile-screen]').forEach(button => button.addEventListener("click", () => {
+  if (writeBusy) return;
+  if (selectedId) closeDetail();
+  const screen = button.dataset.mobileScreen;
+  if (screen !== "map") setCollectionView(screen === "saved" ? "saved" : "area");
+  showMobileList(screen !== "map");
+}));
+mobileLayout.addEventListener("change", updateMobileNavigation);
 document.addEventListener("keydown", event => { if (event.key === "Escape" && !$("dialog[open]")) closeDetail(); });
 
 $("#city-form").addEventListener("submit", async event => {
@@ -354,17 +437,17 @@ function init() {
   tileLayer.addTo(map);
   markerLayer = L.markerClusterGroup ? L.markerClusterGroup({
     showCoverageOnHover: false, maxClusterRadius: 43, animate: !matchMedia("(prefers-reduced-motion:reduce)").matches,
-    iconCreateFunction: cluster => L.divIcon({ className: "atlas-cluster", html: `<span aria-label="${cluster.getChildCount()} spots, select to zoom in">${cluster.getChildCount()}</span>`, iconSize: [38, 38] })
+    iconCreateFunction: cluster => L.divIcon({ className: "atlas-cluster", html: `<span aria-label="${cluster.getChildCount()} spots, select to zoom in">${cluster.getChildCount()}</span>`, iconSize: [44, 44] })
   }).addTo(map) : L.layerGroup().addTo(map);
   map.on("moveend", () => { const center = map.getCenter(); writeLocal(mapViewKey, { center: [center.lat, center.lng], zoom: map.getZoom() }); });
   new ResizeObserver(() => map.invalidateSize()).observe($("#map"));
-  new ResizeObserver(() => document.documentElement.style.setProperty("--list-top", `${$(".sidebar-intro").getBoundingClientRect().bottom}px`)).observe($(".sidebar-intro"));
+  new ResizeObserver(() => document.documentElement.style.setProperty("--list-top", `${$(".sidebar-intro").getBoundingClientRect().bottom - $(".workspace").getBoundingClientRect().top}px`)).observe($(".sidebar-intro"));
   $("#setup-nudge").hidden = store.ready;
   $("#setup-instructions").hidden = store.ready;
   $("#connected-info").hidden = !store.ready;
   $("#refresh-data").disabled = !store.ready;
   setSyncState(store.ready ? "loading" : "setup");
-  render(); searchArea({ initial: true }); syncShared();
+  updateMobileNavigation(); render(); searchArea({ initial: true }); syncShared();
   setInterval(() => { if (!document.hidden) syncShared(); }, 60000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) syncShared(); });
 }

@@ -2,6 +2,7 @@ import { validPlace, validRating } from "../lib/model.js";
 
 export const BODY_LIMIT = 16 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PLACE_ID = /^(node|way|relation)\/\d+$/;
 export class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -33,7 +34,7 @@ function validVisit(value, now) {
 
 function publicRecord(record) {
   if (!record) throw new Error("Missing database confirmation.");
-  const { _id, ...data } = record;
+  const { _id, _revision, ...data } = record;
   return data;
 }
 
@@ -61,14 +62,52 @@ export async function recordVisit(db, value, visitedAt, visitId, now = new Date(
   const place = normalizePlace(value);
   if (typeof visitId !== "string" || !UUID.test(visitId)) throw new ApiError(400, "A valid visit ID is required.");
   const timestamp = validVisit(visitedAt, now);
-  await db.collection("playgrounds").updateOne({ _id: place.id }, {
-    $set: place, $setOnInsert: { variety: null, climbability: null, pull_ups: null, rated_at: null }
-  }, { upsert: true });
-  const visit = await db.collection("playground_visits").findOneAndUpdate({ _id: visitId }, {
-    $setOnInsert: { id: visitId, playground_id: place.id, visited_at: timestamp, created_at: now.toISOString() }
-  }, { upsert: true, returnDocument: "after" });
-  if (visit.playground_id !== place.id || visit.visited_at !== timestamp) throw new ApiError(409, "This visit ID is already used for a different visit.");
-  return publicRecord(visit);
+  // Keep the place and its visit together, including during a concurrent removal.
+  return transaction(db, async session => {
+    await db.collection("playgrounds").updateOne({ _id: place.id }, {
+      $set: place, $setOnInsert: { variety: null, climbability: null, pull_ups: null, rated_at: null },
+      // Force a write even when metadata is unchanged, so a concurrent delete conflicts.
+      $inc: { _revision: 1 }
+    }, { upsert: true, session });
+    const visit = await db.collection("playground_visits").findOneAndUpdate({ _id: visitId }, {
+      $setOnInsert: { id: visitId, playground_id: place.id, visited_at: timestamp, created_at: now.toISOString() }
+    }, { upsert: true, returnDocument: "after", session });
+    if (visit.playground_id !== place.id || visit.visited_at !== timestamp) throw new ApiError(409, "This visit ID is already used for a different visit.");
+    return publicRecord(visit);
+  });
+}
+
+function transaction(db, operation) {
+  return db.client.withSession(session => session.withTransaction(() => operation(session), {
+    readPreference: "primary", readConcern: { level: "snapshot" }, writeConcern: { w: "majority" }, maxCommitTimeMS: 10000
+  }));
+}
+
+export function normalizeDeletion(value) {
+  if (!value || value.confirmed !== true) throw new ApiError(400, "Confirm the deletion first.");
+  if (!["visit", "rating", "place"].includes(value.target)) throw new ApiError(400, "Invalid deletion target.");
+  if (typeof value.placeId !== "string" || !PLACE_ID.test(value.placeId)) throw new ApiError(400, "Invalid playground ID.");
+  if (value.target === "visit" && (typeof value.visitId !== "string" || !UUID.test(value.visitId))) throw new ApiError(400, "A valid visit ID is required.");
+  return { target: value.target, placeId: value.placeId, ...(value.target === "visit" ? { visitId: value.visitId } : {}) };
+}
+
+export async function deleteEntry(db, value) {
+  const deletion = normalizeDeletion(value);
+  const { target, placeId, visitId } = deletion;
+  if (target === "visit") {
+    await db.collection("playground_visits").deleteOne({ _id: visitId, playground_id: placeId });
+  } else if (target === "rating") {
+    const place = await db.collection("playgrounds").findOneAndUpdate({ _id: placeId }, {
+      $set: { variety: null, climbability: null, pull_ups: null, rated_at: null }
+    }, { returnDocument: "after" });
+    return { deleted: true, ...deletion, place: place ? publicRecord(place) : null };
+  } else {
+    await transaction(db, async session => {
+      await db.collection("playgrounds").deleteOne({ _id: placeId }, { session });
+      await db.collection("playground_visits").deleteMany({ playground_id: placeId }, { session });
+    });
+  }
+  return { deleted: true, ...deletion };
 }
 
 async function readBody(req) {
@@ -127,6 +166,11 @@ export function createAtlasHandler({ getDatabase, origins, now = () => new Date(
       if (!/^application\/json(?:;|$)/i.test(req.headers["content-type"] || "")) throw new ApiError(415, "Use application/json.");
       const body = await readBody(req);
       if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError(400, "A JSON object is required.");
+      if (body.action === "delete") {
+        normalizeDeletion(body);
+        const result = await deleteEntry(await getDatabase(), body);
+        res.end(JSON.stringify(result)); return;
+      }
       if (!["rate", "visit"].includes(body.action)) throw new ApiError(400, "Unknown action.");
       normalizePlace(body.place);
       if (body.action === "rate" && !validRating(body.rating)) throw new ApiError(400, "Every rating must be an integer from 0 to 10.");

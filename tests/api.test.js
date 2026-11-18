@@ -46,6 +46,26 @@ test("visits preserve UTC timestamps and require the server to confirm the idemp
   const failed = new SharedStore(config, async () => response({ id: "wrong" }));
   await assert.rejects(failed.addVisit(place, timestamp, id), /did not confirm/);
 });
+
+test("deletion uses a confirmed, scoped request and requires the matching server response", async () => {
+  const visitId = "88d64d8a-32e1-4f0b-a0ca-48d0e6db0381";
+  let writes = 0;
+  const store = new SharedStore(config, async (url, options) => {
+    writes++; const body = JSON.parse(options.body);
+    assert.equal(options.method, "POST"); assert.equal(body.confirmed, true);
+    return response({ deleted: true, ...body });
+  });
+  for (const target of ["place", "rating", "visit"]) await store.deleteEntry(target, place.id, visitId);
+  assert.equal(writes, 3);
+  await assert.rejects(store.deleteEntry("all", place.id));
+  await assert.rejects(store.deleteEntry("place", { $ne: null }));
+  await assert.rejects(store.deleteEntry("visit", place.id, "invalid"));
+  assert.equal(writes, 3);
+  const wrong = new SharedStore(config, async () => response({ deleted: true, target: "place", placeId: "node/11" }));
+  await assert.rejects(wrong.deleteEntry("place", place.id), /did not confirm/);
+  const failed = new SharedStore(config, async () => response({}, 503));
+  await assert.rejects(failed.deleteEntry("place", place.id), /unavailable/);
+});
 test("cursor pagination loads the full collection and rejects repeated cursors", async () => {
   const records = Array.from({ length: 1001 }, (_, i) => ({ ...place, id: `node/${i}` }));
   let page = 0;
